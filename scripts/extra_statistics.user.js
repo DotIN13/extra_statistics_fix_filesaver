@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------------------
-// [WoD] Extra Statistics (fork)
-// Version 1.33, 2014-02-13
+// [WoD] Extra Statistics
+// Version 1.41, 2014-07-09
 // Copyright (c) Fenghou, Tomy
 // This script can generate additional statistical data in the dungeon and duel report pages.
 // When you entered the details or statistics page of reports, a new button will appear beside
@@ -1773,7 +1773,7 @@ function CountStat(Document, bLastSubPage)
 				;
 			}
 		Stat.SaveInfo(Info);
-		}
+		};
 	}
 
 
@@ -1795,7 +1795,7 @@ function RemoveLastRound(Document)
 				break;
 				}
 			}
-		}
+		};
 	}
 
 
@@ -2185,17 +2185,17 @@ var Contents = {
 	Pattern_Active_Action2		: [/^\s*([\S].*[\S])\s*$/,
 					   /^\s*([\S].*[\S])\s*$/],
 	Pattern_Active_AttackDetails	: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
-					   /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) 法力<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?(?:\/<span .*?>(?:<b>)?-([\d]+) HP(?:<\/b>)?<\/span>)?\)$/],
+					   /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?(?:\/<span .*?>(?:<b>)?-([\d]+) HP(?:<\/b>)?<\/span>)?\)$/],
 	Pattern_Active_HealBuffDetails	: [/^(?:<span .*?>([\d]+) MP<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
-					   /^(?:<span .*?>([\d]+) 法力<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?:给)?$/],
+					   /^(?:<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?:给)?$/],
 	Pattern_Passive_Attacked	: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[A-Za-z ]+<\/span>( - [A-Za-z ]+)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[A-Za-z ]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/,
-					   /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) 法力<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[^\u0000-\u007F]+<\/span>( - [^\u0000-\u007F]+ *)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[^\u0000-\u007F]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/],
+					   /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[^\u0000-\u007F]+<\/span>( - [^\u0000-\u007F]+ *)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[^\u0000-\u007F]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/],
 	Pattern_BasicDamage		: [/causes: <b>([\d]+)<\/b>/,
 					   /造成: <b>([\d]+)<\/b>/],
 	Pattern_Damage			: [/^((?:-)?[\d]+) (?:\[((?:\+|-)[\d]+)\] )?([A-Za-z][A-Za-z ]+[A-Za-z])$/,
 					   /^((?:-)?[\d]+) (?:\[((?:\+|-)[\d]+)\] )?([^\u0000-\u007F]+)$/],
 	Pattern_Passive_Healed_Buffed	: [/^(?:(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s+|(themselves))(?: \+([\d]+) HP)?(?: \+([\d]+) MP)?(?:(<br>)|$)/,
-					   /^(?:(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s+|(自己))(?: \+([\d]+) HP)?(?: \+([\d]+) 法力)?(?:(<br>)|$)/],
+					   /^(?:(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s+|(自己))(?: \+([\d]+) HP)?(?: \+([\d]+) (?:法力|神力|怒气))?(?:(<br>)|$)/],
 	Text_Button_ExtraStat		: ["Extra Stat",
 					   "额外统计"],
 	Text_Button_EntireStat		: ["Entire Extra Stat",
@@ -2363,7 +2363,7 @@ function OnCountStat()
 		Stat.nTotalPages = 1;
 		ReadPage(document, true);
 		}
-	catch (e) {alert("OnCountStat(): " + e);}
+	catch (e) {alert("OnCountStat(): " + e);};
 	}
 
 
@@ -2377,7 +2377,7 @@ function OnCountEntireStat()
 
 		CountEntireStat();
 		}
-	catch (e) {alert("OnCountEntireStat(): " + e);}
+	catch (e) {alert("OnCountEntireStat(): " + e);};
 	}
 
 
@@ -2456,7 +2456,7 @@ function GetHiddenInfo(Document, InfoName, DefaultValue)
 		if (allInputs[i].getAttribute("type") == "hidden" &&
 			allInputs[i].name == InfoName)
 			return allInputs[i].value;
-		}
+		};
 	return DefaultValue;
 	}
 
@@ -2497,7 +2497,9 @@ function GetRepPageInfo(Document, DefaultValue)
 			}
 		}
 	if (SubPageIndexNode == null)
+		{
 		return ret;
+		};
 
 	var bIndexEnd = false;
 	while (!bIndexEnd)
@@ -2516,7 +2518,7 @@ function GetRepPageInfo(Document, DefaultValue)
 			ret[1] = nCurrIndex;
 			bIndexEnd = true;
 			}
-		}
+		};
 
 	return ret;
 	}
