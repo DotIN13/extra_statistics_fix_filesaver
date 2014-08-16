@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------------------
 // [WoD] Extra Statistics (fork)
-// Version 1.30, 2014-01-19
+// Version 1.31, 2014-02-06
 // Copyright (c) Fenghou, Tomy
 // This script can generate additional statistical data in the dungeon and duel report pages.
 // When you entered the details or statistics page of reports, a new button will appear beside
@@ -619,8 +619,10 @@ function CActiveInfo()
 	this.nCharId;
 	this.ActionType		= new CActionType();
 	this.Skill		= new CSkill();
-	this.nAttackRoll;
+	this.gAttackRoll;
+	this.gPosition		= new CKeyList();
 	this.nSkillMP;
+	this.nSkillHP;
 	this.gItem		= new CKeyList();
 	}
 
@@ -754,6 +756,30 @@ var CChar = DefineClass({
 				default:
 					return null;
 				}
+			}
+		}
+	});
+
+
+// Attack position
+var CPositionType = DefineClass({
+	extend: CKey,
+	construct: function(PositionText)
+		{
+		this._nType;
+
+		if (PositionText != null)
+			{
+			this._nType = PositionText;
+			}
+		},
+	methods:
+		{
+		GetType: function() {return this._nType;},
+		compareTo: function(that) {return CompareString(this._nType, that._nType);},
+		toString: function()
+			{
+			return this._nType;
 			}
 		}
 	});
@@ -1481,9 +1507,14 @@ var CILAttackRoll = DefineClass({
 		{
 		SaveInfo: function(Info)
 			{
-			if (Info.Active.ActionType.GetKind() === 0 && Info.Active.nAttackRoll != null)
-				this.push([Info.Active.Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem],
-					Info.Active.nAttackRoll);
+			if (Info.Active.ActionType.GetKind() === 0 && Info.Active.gAttackRoll.length != 0)
+				{
+				for (var i = 0; i < Info.Active.gAttackRoll.length; ++i)
+					{
+					this.push([Info.Active.Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem, Info.Active.gPosition._gKey[i]],
+						Info.Active.gAttackRoll[i]);
+					}
+				}
 			},
 		Show: function()
 			{
@@ -1492,7 +1523,7 @@ var CILAttackRoll = DefineClass({
 				this.CalculateValue();
 				this.sort();
 				return this.CreateTable( Local.Text_Table_Attack, "stat_attack",
-					[Local.Text_Table_Char, Local.Text_Table_AttackType, Local.Text_Table_Skill, Local.Text_Table_Item]);
+					[Local.Text_Table_Char, Local.Text_Table_AttackType, Local.Text_Table_Skill, Local.Text_Table_Item, 'pos']);
 				}
 			return "";
 			}
@@ -1872,10 +1903,12 @@ function GetActiveInfo(Node, Info)
 		case 0:	// attack
 			{
 			// \1	single roll
-			// \2	position n
-			// \3	multiple roll n
-			// \4	MP
-			// \5	item list
+			// \2   multiple positions and rolls
+			// \3	position n (only the last one)
+			// \4	multiple roll n (only the last one)
+			// \5	MP
+			// \6	item list
+			// \7   HP
 			var Patt_ActtackDetails = Local.Pattern_Active_AttackDetails;
 			result = Patt_ActtackDetails.exec(Str);
 			if (result == null)
@@ -1884,12 +1917,30 @@ function GetActiveInfo(Node, Info)
 				return false;
 				}
 			Info.Active.Skill = new CSkill(Node.childNodes[nStartNode]);
-			Info.Active.nAttackRoll = Number(result[1] != null ? result[1] : result[3]);
-			Info.Active.nSkillMP = result[4] != null ? Number(result[4]) : null;
-			if (result[5] != null)
+			Info.Active.gAttackRoll = [];
+			Info.Active.gPosition = new CKeyList();
+			if (result[1] != null)
+				{
+				Info.Active.gAttackRoll.push(Number(result[1]));
+				Info.Active.gPosition.push(new CPositionType(''));
+				};
+			if (result[2] != null)
+				{
+				var pattern_pos_atk = /^([^\u0000-\u007F]+): ([\d]+)$/
+				var gPos_Atk = result[2].split('/');
+				for (var i = 1; i < gPos_Atk.length; ++i)
+					{
+					var inner_result = pattern_pos_atk.exec(gPos_Atk[i]);
+					Info.Active.gAttackRoll.push(Number(inner_result[2]));
+					Info.Active.gPosition.push(new CPositionType(inner_result[1]));
+					}
+				}
+			Info.Active.nSkillMP = result[5] != null ? Number(result[5]) : null;
+			Info.Active.nSkillHP = result[7] != null ? Number(result[7]) : null;
+			if (result[6] != null)
 				{
 				Info.Active.gItem = new CKeyList();
-				nStartNode += result[4] != null ? 4 : 2;
+				nStartNode += result[5] != null ? 4 : 2;
 				var ItemNode;
 				while ((ItemNode = Node.childNodes[nStartNode]) != null)
 					{
@@ -2130,7 +2181,7 @@ var Contents = {
 	Pattern_Active_Action2		: [/^\s*([\S].*[\S])\s*$/,
 					   /^\s*([\S].*[\S])\s*$/],
 	Pattern_Active_AttackDetails	: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
-					   /^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([^\u0000-\u007F]+): ([\d]+))+)(?:\/<span .*?>([\d]+) 法力<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/],
+					   /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) 法力<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?(?:\/<span .*?>(?:<b>)?-([\d]+) HP(?:<\/b>)?<\/span>)?\)$/],
 	Pattern_Active_HealBuffDetails	: [/^(?:<span .*?>([\d]+) 法力<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
 					   /^(?:<span .*?>([\d]+) 法力<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?:给)?$/],
 	Pattern_Passive_Attacked	: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[A-Za-z ]+<\/span>( - [A-Za-z ]+)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[A-Za-z ]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/,
@@ -2249,7 +2300,7 @@ function Main()
 	// Stat initialization
 	Stat = new CStat( node_after(KeyButton.parentNode) );
 	Stat.RegInfoList(new CILIni(		1, CVLNumber));
-	Stat.RegInfoList(new CILAttackRoll(	4, CVLNumber));
+	Stat.RegInfoList(new CILAttackRoll(	5, CVLNumber));
 	Stat.RegInfoList(new CILDefenceRoll(	4, CVLNumber));
 	Stat.RegInfoList(new CILDamage(		4, CVLDamage));
 	Stat.RegInfoList(new CILHeal(		3, CVLPairNumber));
