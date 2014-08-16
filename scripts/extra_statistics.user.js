@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------------------
 // [WoD] Extra Statistics (fork)
-// Version 1.31, 2014-02-06
+// Version 1.33, 2014-02-13
 // Copyright (c) Fenghou, Tomy
 // This script can generate additional statistical data in the dungeon and duel report pages.
 // When you entered the details or statistics page of reports, a new button will appear beside
@@ -1523,7 +1523,7 @@ var CILAttackRoll = DefineClass({
 				this.CalculateValue();
 				this.sort();
 				return this.CreateTable( Local.Text_Table_Attack, "stat_attack",
-					[Local.Text_Table_Char, Local.Text_Table_AttackType, Local.Text_Table_Skill, Local.Text_Table_Item, 'pos']);
+					[Local.Text_Table_Char, Local.Text_Table_AttackType, Local.Text_Table_Skill, Local.Text_Table_Item, Local.Text_Table_Position]);
 				}
 			return "";
 			}
@@ -1944,7 +1944,11 @@ function GetActiveInfo(Node, Info)
 				var ItemNode;
 				while ((ItemNode = Node.childNodes[nStartNode]) != null)
 					{
-					Info.Active.gItem.push(new CItem(ItemNode));
+					var temp_item = new CItem(ItemNode);
+					if (temp_item._Name != null)
+						{
+						Info.Active.gItem.push(temp_item);
+						};
 					nStartNode += 2;
 					}
 				}
@@ -2182,7 +2186,7 @@ var Contents = {
 					   /^\s*([\S].*[\S])\s*$/],
 	Pattern_Active_AttackDetails	: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
 					   /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) 法力<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?(?:\/<span .*?>(?:<b>)?-([\d]+) HP(?:<\/b>)?<\/span>)?\)$/],
-	Pattern_Active_HealBuffDetails	: [/^(?:<span .*?>([\d]+) 法力<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
+	Pattern_Active_HealBuffDetails	: [/^(?:<span .*?>([\d]+) MP<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
 					   /^(?:<span .*?>([\d]+) 法力<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?:给)?$/],
 	Pattern_Passive_Attacked	: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[A-Za-z ]+<\/span>( - [A-Za-z ]+)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[A-Za-z ]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/,
 					   /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) 法力<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[^\u0000-\u007F]+<\/span>( - [^\u0000-\u007F]+ *)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[^\u0000-\u007F]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/],
@@ -2234,6 +2238,8 @@ var Contents = {
 					   "技能"],
 	Text_Table_Item			: ["Item",
 					   "物品"],
+	Text_Table_Position			: ["Pos",
+					   "位置"],
 	Text_Table_AvgRoll		: ["Average roll",
 					   "平均值"],
 	Text_Table_MaxRoll		: ["Max roll",
