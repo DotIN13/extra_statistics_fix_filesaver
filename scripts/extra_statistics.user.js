@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------------------
 // [WoD] Extra Statistics
-// Version 1.41, 2014-07-09
+// Version 1.42, 2014-08-15
 // Copyright (c) Fenghou, Tomy
 // This script can generate additional statistical data in the dungeon and duel report pages.
 // When you entered the details or statistics page of reports, a new button will appear beside
@@ -850,16 +850,18 @@ var CActionType = DefineClass({
 					return [11, 0];
 				case Local.OrigTextList_ActionType[12]:	// scare
 					return [12, 0];
-				case Local.OrigTextList_ActionType[13]:	// heal
-					return [13, 1];
-				case Local.OrigTextList_ActionType[14]:	// buff
-					return [14, 2];
-				case Local.OrigTextList_ActionType[15]:	// summon
+				case Local.OrigTextList_ActionType[13]:	// impact
+					return [13, 0];
+				case Local.OrigTextList_ActionType[14]:	// heal
+					return [14, 1];
+				case Local.OrigTextList_ActionType[15]:	// buff
 					return [15, 2];
-				case Local.OrigTextList_ActionType[16]:	// do nothing
-					return [16, 3];
-				case Local.OrigTextList_ActionType[17]:	// wait
+				case Local.OrigTextList_ActionType[16]:	// summon
+					return [16, 2];
+				case Local.OrigTextList_ActionType[17]:	// do nothing
 					return [17, 3];
+				case Local.OrigTextList_ActionType[18]:	// wait
+					return [18, 3];
 				default:
 					return [null, null];
 				}
@@ -2173,7 +2175,7 @@ var Contents = {
 	OrigText_LastRound		: ["Last round:",
 					   "最后回合:"],
 	OrigTextList_ActionType		: [["attacks", "ranged attacks", "attacks with magic", "socially attacks", "cunningly attacks", "activates on", "works as a force of nature upon", "infected", "casts an explosion at", "deactivated", "magic projectile", "curse", "scare", "heals with", "uses", "summons with", "is unable to do anything.", "looks around in boredom and waits."],
-					   ["近战攻击", "远程攻击", "魔法攻击", "心理攻击", "偷袭", "触发", "作为自然灾害", "散布", "制造爆炸", "解除", "魔法投射", "诅咒", "恐吓", "治疗", "使用", "召唤", "不能执行任何动作.", "无聊的打量四周，等待着."]],
+					   ["近战攻击", "远程攻击", "魔法攻击", "心理攻击", "偷袭", "触发", "作为自然灾害", "散布", "制造爆炸", "解除", "魔法投射", "诅咒", "恐吓", "冲击", "治疗", "使用", "召唤", "不能执行任何动作.", "无聊的打量四周，等待着."]],
 	OrigTextList_DamageType		: [["crushing damage", "cutting damage", "piercing damage", "fire damage", "ice damage", "lightning damage", "poison damage", "acid damage", "psychological damage", "holy damage", "disarm trap", "mana damage"],
 					   ["粉碎伤害", "切割伤害", "穿刺伤害", "火焰伤害", "寒冰伤害", "闪电伤害", "毒素伤害", "酸性伤害", "心灵伤害", "神圣伤害", "陷阱伤害", "法力伤害"]],
 	Pattern_Ini			: [/^Initiative ([\d]+)<br><span .*?>Action ([\d]+) of ([\d]+)<\/span>$/,
@@ -2185,11 +2187,11 @@ var Contents = {
 	Pattern_Active_Action2		: [/^\s*([\S].*[\S])\s*$/,
 					   /^\s*([\S].*[\S])\s*$/],
 	Pattern_Active_AttackDetails	: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
-					   /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?(?:\/<span .*?>(?:<b>)?-([\d]+) HP(?:<\/b>)?<\/span>)?\)$/],
+					   /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?\)$/],
 	Pattern_Active_HealBuffDetails	: [/^(?:<span .*?>([\d]+) MP<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
 					   /^(?:<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?:给)?$/],
 	Pattern_Passive_Attacked	: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[A-Za-z ]+<\/span>( - [A-Za-z ]+)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[A-Za-z ]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/,
-					   /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[^\u0000-\u007F]+<\/span>( - [^\u0000-\u007F]+ *)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[^\u0000-\u007F]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/],
+					   /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[^\u0000-\u007F]+<\/span>( - [^\u0000-\u007F]+ *)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[^\u0000-\u007F]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> (?:-|\+)([\d]+) HP)?(?:(<br>)|$)/],
 	Pattern_BasicDamage		: [/causes: <b>([\d]+)<\/b>/,
 					   /造成: <b>([\d]+)<\/b>/],
 	Pattern_Damage			: [/^((?:-)?[\d]+) (?:\[((?:\+|-)[\d]+)\] )?([A-Za-z][A-Za-z ]+[A-Za-z])$/,
@@ -2205,7 +2207,7 @@ var Contents = {
 	Text_Button_Default		: ["Default",
 					   "默认"],
 	TextList_AttackType		: [["melee", "ranged", "spell", "social", "ambush", "trap", "nature", "disease", "detonate","disarm trap", "magic projectile", "curse", "scare"],
-					   ["近战", "远程", "魔法", "心理", "偷袭", "陷阱", "自然", "疾病", "爆破", "解除陷阱", "魔法投射", "诅咒", "恐吓"]],
+					   ["近战", "远程", "魔法", "心理", "偷袭", "陷阱", "自然", "疾病", "爆破", "解除陷阱", "魔法投射", "诅咒", "恐吓", "冲击"]],
 	TextList_HitType		: [["failed", "success", "good success", "critical success"],
 					   ["闪避", "普通", "重击", "致命一击"]],
 	Text_Loading			: ["Loading",
@@ -2264,11 +2266,7 @@ var Style = "div.stat_header {margin:1em auto 0.5em auto;} " +
 var Local;
 var Stat;
 
-try {Main();} catch(e) {alert("Main(): " + e);}
-
-
-// FUNCTIONS //////////////////////////////////////////////////////////////////
-if( typeof(GM_addStyle)=='undefined' ){function GM_addStyle(styles){         
+if ( typeof(GM_addStyle)=='undefined' ){function GM_addStyle(styles){         
         var S = document.createElement('style'); 
         S.type = 'text/css'; 
         var T = ''+styles+''; 
@@ -2278,6 +2276,10 @@ if( typeof(GM_addStyle)=='undefined' ){function GM_addStyle(styles){
         return; 
 }}
 
+try {Main();} catch(e) {alert("Main(): " + e);}
+
+
+// FUNCTIONS //////////////////////////////////////////////////////////////////
 if (!this.GM_getValue || this.GM_getValue.toString().indexOf("not supported")>-1) {
      this.GM_getValue=function (key,def) {
          return localStorage[key] || def;
