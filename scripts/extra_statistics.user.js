@@ -1141,9 +1141,7 @@ var CVLPairNumber = DefineClass({
 		Calculate: function()
 			{
 			var nTotalValue = [0, 0];
-			// Chrome does not support array comprehension "for each"
-			//var gValueZero = [i[0] for each (i in this._gValue)];
-			//var gValueFirst = [i[1] for each (i in this._gValue)];
+
 			var gValueZero = [];
 			var gValueFirst = [];
 			for (var i = 0; i < this._gValue.length; ++i)
@@ -1153,6 +1151,7 @@ var CVLPairNumber = DefineClass({
 				nTotalValue[0] += this._gValue[i][0];
 				nTotalValue[1] += this._gValue[i][1];
 				};
+
 			this._nAvgValue = new Array(2);
 			this._nAvgValue[0] = Number((nTotalValue[0] / this._gValue.length).toFixed(2));
 			this._nAvgValue[1] = Number((nTotalValue[1] / this._gValue.length).toFixed(2));
