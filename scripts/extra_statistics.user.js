@@ -1,6 +1,5 @@
 //-----------------------------------------------------------------------------
 // [WoD] Extra Statistics
-// Version 1.42, 2014-08-15
 // Copyright (c) Fenghou, Tomy
 // This script can generate additional statistical data in the dungeon and duel report pages.
 // When you entered the details or statistics page of reports, a new button will appear beside
@@ -18,10 +17,12 @@
 // ==UserScript==
 // @name		Extra Statistics
 // @namespace		fenghou
+// @version		1.43
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include		http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include		http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
-// @include     file:///*f1.htm
+// @updateURL		https://bitbucket.org/wod/extra_statistics/raw/default/scripts/extra_statistics.user.js
+// @downloadURL		https://bitbucket.org/wod/extra_statistics/raw/default/scripts/extra_statistics.user.js
 // ==/UserScript==
 
 
