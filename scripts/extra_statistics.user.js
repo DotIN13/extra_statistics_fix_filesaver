@@ -28,9 +28,6 @@
 
 // COMMON FUNCTIONS ///////////////////////////////////////////////////////////
 
-function $(id) {return document.getElementById(id);}
-
-
 // Choose contents of the corresponding language
 // Contents: {Name1 : [lang1, lang2, ...], Name2 : [lang1, lang2, ...], ...}
 // return: Local contents, or null
@@ -482,6 +479,15 @@ CStat.prototype.Show = function()
 	this._AddEvents();
 	};
 
+CStat.prototype.Export = function()
+	{
+	this._Write("<hr />");
+	for (var i = 0; i < this._gInfoList.length; ++i)
+		this._Write( this._gInfoList[i].Export() );
+	this._Write("<hr />");
+	this._Flush();
+	};
+	
 CStat.prototype.ShowProgress = function()
 	{
 	this._Node.innerHTML = '<hr /><h1>' + Local.Text_Loading + ' (' +
@@ -509,12 +515,12 @@ CStat.prototype._AddEvents = function()
 			}
 		catch (e) {alert("OnDelGMValues(): " + e);}
 		}
-	$("stat_options_default").addEventListener("click", OnDelGMValues, false);
+	document.getElementById("stat_options_default").addEventListener("click", OnDelGMValues, false);
 	};
 
 
 ///////////////////////////////////////////////////////////////////////////////
-function CTable(Title, Id, nColumns)
+function CTable(Title, Id, nColumns, isExport)
 	{
 	this._Title = Title;
 	this._Id = Id;
@@ -523,7 +529,7 @@ function CTable(Title, Id, nColumns)
 	this._BodyCellContentTypes = new Array(nColumns);
 	this._BodyCellContents = [];
 	this._HTML = '';
-
+	this._isExport = isExport;
 	this._bShow = GM_getValue(Id, true);
 	}
 
@@ -586,7 +592,10 @@ CTable.prototype.GetHTML = function()
 
 CTable.prototype.AddEvents = function()
 	{
-	var Title = $(this._Id).getElementsByTagName("span")[0];
+	var node = document.getElementById(this._Id);
+	if(!node)
+		return;
+	var Title = node.getElementsByTagName("span")[0];
 	function Factory(Id) {return function(){CTable.OnClickTitle(Id);};}
 	Title.addEventListener("click", Factory(this._Id), false);
 	};
@@ -594,7 +603,7 @@ CTable.prototype.AddEvents = function()
 CTable.OnClickTitle = function(Id)
 	{
 	try	{
-		var Table = $(Id).getElementsByTagName("table")[0];
+		var Table = document.getElementById(Id).getElementsByTagName("table")[0];
 		if (Table.hasAttribute("hide"))
 			{
 			Table.removeAttribute("hide");
@@ -661,7 +670,6 @@ function CActionInfo(Navi)
 	this.Active		= new CActiveInfo();
 	this.gPassive		= [];
 	}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Class: Key
@@ -988,6 +996,7 @@ var CDamage = DefineClass({
 		this._nActualDmg;
 		this._nArmor;
 		this._nType;
+		this._sType;
 
 		if (HTMLElement != null)
 			{
@@ -1015,6 +1024,7 @@ var CDamage = DefineClass({
 				throw "CDamage() :" + Str;
 			this._nActualDmg = Number(result[1]);
 			this._nArmor = result[2] != null ? Number(result[2]) : 0;
+			this._sType = result[3] || "";
 			this._nType = CDamage._GetDamageType(result[3]);
 
 			if (this._nType === null)
@@ -1026,6 +1036,7 @@ var CDamage = DefineClass({
 	methods:
 		{
 		GetType:	function() {return this._nType;},
+		GetDamageType:	function() {return this._sType;},
 		GetBasicDmg:	function() {return this._nBasicDmg;},
 		GetArmor:	function() {return this._nArmor;},
 		GetActualDmg:	function() {return this._nActualDmg;},
@@ -1314,14 +1325,76 @@ var CVLDamage = DefineClass({
 
 ///////////////////////////////////////////////////////////////////////////////
 // Class: Info list
+function CKeyType(name,type)
+	{
+		this.Name = name;
+		this.Type = type;
+		this.getValue = function(info)
+			{
+				switch (this.Name)
+					{
+					case Local.Text_Table_AvgRoll:
+						return info.ValueList.AvgValueStr();
+					case Local.Text_Table_Times:
+						return info.ValueList.GetLength();
+					case Local.Text_Table_MaxRoll:
+						return info.ValueList.MaxValueStr();
+					case Local.Text_Table_MinRoll:
+						return info.ValueList.MinValueStr();
+					case Local.Text_Table_STDRoll:
+						return info.ValueList.STDValueStr();
+					case Local.Text_Table_RollList:
+						return CreateElementHTML("input", null, ["type", "button"],
+						["class", "button"], ["value", Local.Text_Button_Show],
+						["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
+					default:
+						return this.Name;
+					}
+			}
+	}
+
+CKeyType.AvgRoll = function(){return new CKeyType(Local.Text_Table_AvgRoll,"number");}
+
+CKeyType.Times = function(){return new CKeyType(Local.Text_Table_Times,"number");}
+
+CKeyType.MaxRoll = function(){return new CKeyType(Local.Text_Table_MaxRoll,"number");}
+
+CKeyType.MinRoll = function(){return new CKeyType(Local.Text_Table_MinRoll,"number");}
+
+CKeyType.STDRoll = function(){return new CKeyType(Local.Text_Table_STDRoll,"number");}
+
+CKeyType.RollList = function(){return new CKeyType(Local.Text_Table_RollList,"button");}
+
+CKeyType.Char = function(){return new CKeyType(Local.Text_Table_Char,"string");}
+
+CKeyType.AttackType = function(){return new CKeyType(Local.Text_Table_AttackType,"string");}
+
+CKeyType.Skill = function(){return new CKeyType(Local.Text_Table_Skill,"string");}
+
+CKeyType.Item = function(){return new CKeyType(Local.Text_Table_Item,"string");}
+
+CKeyType.Position = function(){return new CKeyType(Local.Text_Table_Position,"string");}
+
+CKeyType.DamageType = function(){return new CKeyType(Local.Text_Table_DamageType,"string");}
+
+CKeyType.DefenceType = function(){return new CKeyType(Local.Text_Table_DefenceType,"string");}
+
+CKeyType.ItemDamagePoints = function(){return new CKeyType(Local.Text_Table_ItemDamagePoints,"string");}
+
+CKeyType.ValueName = function(){return [CKeyType.AvgRoll(),CKeyType.Times(),CKeyType.MaxRoll(),CKeyType.MinRoll(),CKeyType.STDRoll(),CKeyType.RollList()];}
 
 var CInfoList = DefineClass({
-	construct: function(nKeys, CValueList)
+	construct: function(CValueList, Title, Id, gKeyName, gValueName)
 		{
 		this._gInfo		= [];
-		this._nKeys		= nKeys;
-		this._CValueList	= CValueList;
+		this._gKeyName	= gKeyName||[];
+		this._nKeys		= this._gKeyName.length;
+		this._CValueList	= CValueList||[];
 		this._Table		= null;
+		this._Title		= Title||"";
+		this._Id		= Id||"";
+		this._gValueName = gValueName||[];
+		this._Allkey = this._gKeyName.concat(this._gValueName);
 		},
 	methods:
 		{
@@ -1343,51 +1416,51 @@ var CInfoList = DefineClass({
 				for (var j = 0; j < this._gInfo[i].gKey.length; ++j)
 					gBodyCellContent.push( this._gInfo[i].gKey[j] );
 
-				gBodyCellContent.push( this._gInfo[i].ValueList.AvgValueStr(),
-					String(this._gInfo[i].ValueList.GetLength()),
-					this._gInfo[i].ValueList.MaxValueStr(),
-					this._gInfo[i].ValueList.MinValueStr(),
-					this._gInfo[i].ValueList.STDValueStr(),
-					CreateElementHTML("input", null, ["type", "button"],
-						["class", "button"], ["value", Local.Text_Button_Show],
-						["onclick", 'alert(&quot;' + this._gInfo[i].ValueList.toString() + '&quot;);']) );
+				for (var j = 0; j < this._gValueName.length; ++j)
+					gBodyCellContent.push( this._gValueName[j].getValue(this._gInfo[i]));
 
 				this._Table.SetBodyCellContents.apply(this._Table, gBodyCellContent);
 				}
 			},
 		SaveInfo: function(Info) {},
-		Show: function() {},
+		Output:function(isExport)
+			{
+			if (this._gInfo.length > 0)
+				{
+				this.CalculateValue();
+				this.sort();
+				return this.CreateTable(isExport);
+				}
+			return "";
+			}, 
+		Show: function()
+			{
+			return this.Output(false);
+			},
+		Export: function()
+			{
+			return this.Output(true);
+			},
 		// Call this function when read all data, and before sort and export data
 		CalculateValue: function()
 			{
 			for (var i = 0; i < this._gInfo.length; ++i)
 				this._gInfo[i].ValueList.Calculate();
 			},
-		CreateTable: function(Title, Id, gKeyName)
+		CreateTable: function(isExport)
 			{
 			// Key1, Key2, ..., AverageValue, Times, MaxValue, MinValue, STDValue, ValueList
-			this._Table = new CTable(Title, Id, this._nKeys + 6);
+			this._Table = new CTable(this._Title, this._Id, this._Allkey.length,isExport);
+			
+			var gHeadCellContent = new Array(this._Allkey.length);
+			var gBodyCellContentType = new Array(this._Allkey.length);
+			for (var i = 0; i < this._Allkey.length; ++i)
+			{
+				gHeadCellContent[i] = this._Allkey[i].Name;
+				gBodyCellContentType[i] = this._Allkey[i].type;
+			}
 
-			var gHeadCellContent = new Array(this._nKeys + 6);
-			for (var i = 0; i < this._nKeys; ++i)
-				gHeadCellContent[i] = gKeyName[i];
-			gHeadCellContent[this._nKeys] = Local.Text_Table_AvgRoll;
-			gHeadCellContent[this._nKeys + 1] = Local.Text_Table_Times;
-			gHeadCellContent[this._nKeys + 2] = Local.Text_Table_MaxRoll;
-			gHeadCellContent[this._nKeys + 3] = Local.Text_Table_MinRoll;
-			gHeadCellContent[this._nKeys + 4] = Local.Text_Table_STDRoll;
-			gHeadCellContent[this._nKeys + 5] = Local.Text_Table_RollList;
 			this._Table.SetHeadCellContents.apply(this._Table, gHeadCellContent);
-
-			var gBodyCellContentType = new Array(this._nKeys + 6);
-			for (var i = 0; i < this._nKeys; ++i)
-				gBodyCellContentType[i] = "string";
-			gBodyCellContentType[this._nKeys] = "number";
-			gBodyCellContentType[this._nKeys + 1] = "number";
-			gBodyCellContentType[this._nKeys + 2] = "number";
-			gBodyCellContentType[this._nKeys + 3] = "number";
-			gBodyCellContentType[this._nKeys + 4] = "number";
-			gBodyCellContentType[this._nKeys + 5] = "button";
 			this._Table.SetBodyCellContentTypes.apply(this._Table, gBodyCellContentType);
 
 			this._SetTableBodyCellContents();
@@ -1480,23 +1553,15 @@ var CInfoList = DefineClass({
 
 var CILIni = DefineClass({
 	extend: CInfoList,
-	construct: function(nKeys, CValueList) {this.superclass(nKeys, CValueList);},
+	construct: function(CValueList) {this.superclass(CValueList, Local.Text_Table_Ini, "stat_ini", 
+					[CKeyType.Char()],
+					CKeyType.ValueName());},
 	methods:
 		{
 		SaveInfo: function(Info)
 			{
 			if (Info.Active.nCurrAction === 1)
 				this.push([Info.Active.Char], Info.Active.nIniRoll);
-			},
-		Show: function()
-			{
-			if (this._gInfo.length > 0)
-				{
-				this.CalculateValue();
-				this.sort();
-				return this.CreateTable(Local.Text_Table_Ini, "stat_ini", [Local.Text_Table_Char]);
-				}
-			return "";
 			}
 		}
 	});
@@ -1504,7 +1569,9 @@ var CILIni = DefineClass({
 
 var CILAttackRoll = DefineClass({
 	extend: CInfoList,
-	construct: function(nKeys, CValueList) {this.superclass(nKeys, CValueList);},
+	construct: function(CValueList){this.superclass(CValueList, Local.Text_Table_Attack, "stat_attack",
+					[CKeyType.Char(), CKeyType.AttackType(), CKeyType.Skill(), CKeyType.Item(), CKeyType.Position()],
+					CKeyType.ValueName());},
 	methods:
 		{
 		SaveInfo: function(Info)
@@ -1517,17 +1584,6 @@ var CILAttackRoll = DefineClass({
 						Info.Active.gAttackRoll[i]);
 					}
 				}
-			},
-		Show: function()
-			{
-			if (this._gInfo.length > 0)
-				{
-				this.CalculateValue();
-				this.sort();
-				return this.CreateTable( Local.Text_Table_Attack, "stat_attack",
-					[Local.Text_Table_Char, Local.Text_Table_AttackType, Local.Text_Table_Skill, Local.Text_Table_Item, Local.Text_Table_Position]);
-				}
-			return "";
 			}
 		}
 	});
@@ -1535,7 +1591,9 @@ var CILAttackRoll = DefineClass({
 
 var CILDefenceRoll = DefineClass({
 	extend: CInfoList,
-	construct: function(nKeys, CValueList) {this.superclass(nKeys, CValueList);},
+	construct: function(CValueList) {this.superclass(CValueList, Local.Text_Table_Defence, "stat_defence",
+					[CKeyType.Char(), CKeyType.DefenceType(), CKeyType.Skill(), CKeyType.Item()],
+					CKeyType.ValueName());},
 	methods:
 		{
 		SaveInfo: function(Info)
@@ -1549,17 +1607,6 @@ var CILDefenceRoll = DefineClass({
 							Info.gPassive[i].Skill, Info.gPassive[i].gItem], Info.gPassive[i].nDefenceRoll);
 					}
 				}
-			},
-		Show: function()
-			{
-			if (this._gInfo.length > 0)
-				{
-				this.CalculateValue();
-				this.sort();
-				return this.CreateTable(Local.Text_Table_Defence, "stat_defence",
-					[Local.Text_Table_Char, Local.Text_Table_DefenceType, Local.Text_Table_Skill, Local.Text_Table_Item]);
-				}
-			return "";
 			}
 		}
 	});
@@ -1567,7 +1614,9 @@ var CILDefenceRoll = DefineClass({
 
 var CILDamage = DefineClass({
 	extend: CInfoList,
-	construct: function(nKeys, CValueList) {this.superclass(nKeys, CValueList);},
+	construct: function(CValueList) {this.superclass(CValueList, Local.Text_Table_Damage, "stat_damage",
+					[CKeyType.Char(), CKeyType.AttackType(), CKeyType.Skill(), CKeyType.Item()],
+					CKeyType.ValueName());},
 	methods:
 		{
 		SaveInfo: function(Info)
@@ -1579,19 +1628,9 @@ var CILDamage = DefineClass({
 					if (Info.gPassive[i].gDamage.length > 0)
 						this.push([Info.Active.Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem],
 							Info.gPassive[i].gDamage);
+						
 					}
 				}
-			},
-		Show: function()
-			{
-			if (this._gInfo.length > 0)
-				{
-				this.CalculateValue();
-				this.sort();
-				return this.CreateTable(Local.Text_Table_Damage, "stat_damage",
-					[Local.Text_Table_Char, Local.Text_Table_AttackType, Local.Text_Table_Skill, Local.Text_Table_Item]);
-				}
-			return "";
 			}
 		}
 	});
@@ -1599,7 +1638,9 @@ var CILDamage = DefineClass({
 
 var CILHeal = DefineClass({
 	extend: CInfoList,
-	construct: function(nKeys, CValueList) {this.superclass(nKeys, CValueList);},
+	construct: function(CValueList) {this.superclass(CValueList, Local.Text_Table_Heal, "stat_heal",
+					[CKeyType.Char(), CKeyType.Skill(), CKeyType.Item()],
+					CKeyType.ValueName());},
 	methods:
 		{
 		SaveInfo: function(Info)
@@ -1613,17 +1654,6 @@ var CILHeal = DefineClass({
 							[Info.gPassive[i].nHealedHP, Info.gPassive[i].nHealedMP]);
 					}
 				}
-			},
-		Show: function()
-			{
-			if (this._gInfo.length > 0)
-				{
-				this.CalculateValue();
-				this.sort();
-				return this.CreateTable(Local.Text_Table_Heal, "stat_heal",
-					[Local.Text_Table_Char, Local.Text_Table_Skill, Local.Text_Table_Item]);
-				}
-			return "";
 			}
 		}
 	});
@@ -1631,7 +1661,9 @@ var CILHeal = DefineClass({
 
 var CILHealed = DefineClass({
 	extend: CInfoList,
-	construct: function(nKeys, CValueList) {this.superclass(nKeys, CValueList);},
+	construct: function(CValueList) {this.superclass(CValueList, Local.Text_Table_Healed, "stat_healed", 
+					[CKeyType.Char()],
+					CKeyType.ValueName());},
 	methods:
 		{
 		SaveInfo: function(Info)
@@ -1645,16 +1677,6 @@ var CILHealed = DefineClass({
 							[Info.gPassive[i].nHealedHP, Info.gPassive[i].nHealedMP]);
 					}
 				}
-			},
-		Show: function()
-			{
-			if (this._gInfo.length > 0)
-				{
-				this.CalculateValue();
-				this.sort();
-				return this.CreateTable(Local.Text_Table_Healed, "stat_healed", [Local.Text_Table_Char]);
-				}
-			return "";
 			}
 		}
 	});
@@ -1662,22 +1684,11 @@ var CILHealed = DefineClass({
 
 var CILItemDamage = DefineClass({
 	extend: CInfoList,
-	construct: function(nKeys, CValueList) {this.superclass(nKeys, CValueList);},
+	construct: function(CValueList) {this.superclass(CValueList, Local.Text_Table_DamagedItems, "stat_item_damage",
+					[CKeyType.Char(), CKeyType.Item()],
+					[CKeyType.Times(), CKeyType.ItemDamagePoints(), CKeyType.RollList()]);},
 	methods:
 		{
-		_SetTableBodyCellContents: function()
-			{
-			for (var i = 0; i < this._gInfo.length; ++i)
-				{
-				var gBodyCellContent = [];
-				for (var j = 0; j < this._gInfo[i].gKey.length; ++j)
-					gBodyCellContent.push( this._gInfo[i].gKey[j] );
-
-				gBodyCellContent.push( this._gInfo[i].ValueList.AvgValueStr());
-
-				this._Table.SetBodyCellContents.apply(this._Table, gBodyCellContent);
-				}
-			},
 		SaveInfo: function(Info)
 			{
 			if (Info.Active.ActionType.GetKind() === 0)
@@ -1689,44 +1700,6 @@ var CILItemDamage = DefineClass({
 							Info.gPassive[i].nItemDamage);
 					}
 				}
-			},
-		Show: function()
-			{
-			if (this._gInfo.length > 0)
-				{
-				this.CalculateValue();
-				this.sort();
-				return this.CreateTable(Local.Text_Table_DamagedItems, "stat_item_damage",
-					[Local.Text_Table_Char, Local.Text_Table_Item]);
-				}
-			return "";
-			},
-		CreateTable: function(Title, Id, gKeyName)
-			{
-			// Key1, Key2, ..., nDamage
-			this._Table = new CTable(Title, Id, this._nKeys + 1);
-
-			var gHeadCellContent = new Array(this._nKeys + 1);
-			for (var i = 0; i < this._nKeys; ++i)
-				gHeadCellContent[i] = gKeyName[i];
-			gHeadCellContent[this._nKeys] = Local.Text_Table_ItemDamagePoints;
-			this._Table.SetHeadCellContents.apply(this._Table, gHeadCellContent);
-
-			var gBodyCellContentType = new Array(this._nKeys + 1);
-			for (var i = 0; i < this._nKeys; ++i)
-				gBodyCellContentType[i] = "string";
-			gBodyCellContentType[this._nKeys] = "number";
-			this._Table.SetBodyCellContentTypes.apply(this._Table, gBodyCellContentType);
-
-			this._SetTableBodyCellContents();
-
-			return this._Table.CreateHTML();
-			},
-		push: function(gKey, Value)
-			{
-			var ValueList = new this._CValueList();
-			ValueList.push(Value);
-			return this._gInfo.push(new CInfoList._CInfo(gKey, ValueList));
 			}
 		}
 	});
@@ -2224,6 +2197,8 @@ var Contents = {
 					   "防御骰"],
 	Text_Table_Damage		: ["Damage",
 					   "伤害"],
+	Text_Table_DamageType		: ["Damage Type",
+					   "伤害类型"],
 	Text_Table_Heal			: ["Healing By The Hero",
 					   "给予治疗"],
 	Text_Table_Healed		: ["Healing On The Hero",
@@ -2306,15 +2281,23 @@ function Main()
 	if (KeyButton === null) return;
 
 	// Stat initialization
-	Stat = new CStat( node_after(KeyButton.parentNode) );
-	Stat.RegInfoList(new CILIni(		1, CVLNumber));
-	Stat.RegInfoList(new CILAttackRoll(	5, CVLNumber));
-	Stat.RegInfoList(new CILDefenceRoll(	4, CVLNumber));
-	Stat.RegInfoList(new CILDamage(		4, CVLDamage));
-	Stat.RegInfoList(new CILHeal(		3, CVLPairNumber));
-	Stat.RegInfoList(new CILHealed(		1, CVLPairNumber));
-	Stat.RegInfoList(new CILItemDamage(	2, CVLNumber));
+	Stat = CreateStat(node_after(KeyButton.parentNode),false );
 	}
+
+function CreateStat(node,isExport)
+	{
+	// Stat initialization
+	var theStat = new CStat(node);
+	theStat.RegInfoList(new CILIni(	CVLNumber, isExport));
+	theStat.RegInfoList(new CILAttackRoll(CVLNumber, isExport));
+	theStat.RegInfoList(new CILDefenceRoll(CVLNumber, isExport));
+	theStat.RegInfoList(new CILDamage(CVLDamage, isExport));
+	theStat.RegInfoList(new CILHeal(CVLPairNumber, isExport));
+	theStat.RegInfoList(new CILHealed(CVLPairNumber, isExport));
+	theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
+	return theStat;
+	}
+	
 
 
 // It will only add the first eligible button
