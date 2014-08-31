@@ -429,7 +429,6 @@
 
     // NextNode: the node next to the statistics node when it is created
     function CStat(NextNode) {
-        debugger;
         this._HTML = '';
 
         this._gInfoList = [];
@@ -524,9 +523,11 @@
     function CTable(Title, Id, nColumns, isExport) {
         this._Title = Title;
         this._Id = Id;
+		this._filterId = "filter_" + Id;
         this._nColumns = nColumns;
         this._HeadCellContents = new Array(nColumns);
         this._BodyCellContentTypes = new Array(nColumns);
+		this._HeadCellContentFilters = [];
         this._BodyCellContents = [];
         this._HTML = '';
         this._isExport = isExport;
@@ -539,7 +540,13 @@
         button: 'align="center"'
     };
 
-    CTable.prototype.SetHeadCellContents = function( /* Content1, Content2, ... */ ) {
+    CTable.prototype.SetHeadCellContentFilters = function( /* Content1, Content2, ... */ ) {
+		for (var i = 0; i < arguments.length; ++i)
+            if(arguments[i] != null)
+				this._HeadCellContentFilters.push(arguments[i]);
+    };
+
+	CTable.prototype.SetHeadCellContents = function( /* Content1, Content2, ... */ ) {
         for (var i = 0; i < this._nColumns; ++i)
             this._HeadCellContents[i] = arguments[i] != null ? arguments[i] : "";
     };
@@ -564,21 +571,55 @@
             exportString = "";
         this._HTML = '<div id="' + this._Id + '">' +
             '<div class="stat_header"><span class="stat_title clickable" ' + exportString + '>' + this._Title + '</span></div>' +
-            '<table class="content_table" ' + (this._bShow ? '' : 'hide="hide"') + '>' +
+            '<table class="content_table" id="table_' + this._Id + '" ' + (this._bShow ? '' : 'hide="hide"') + '>' +
             '<tr class="content_table_header">';
 
         for (var i = 0; i < this._nColumns; ++i)
             this._HTML += '<th class="content_table">' + this._HeadCellContents[i] + '</th>';
         this._HTML += '</tr>';
-
+		if(useFilter)
+		{
+			this._HTML += '<tr id="' + this._filterId + '">';
+			for (var i = 0; i < this._nColumns; ++i)
+			{
+				this._HTML += '<td class="content_table_filter_row">';
+				if(this._HeadCellContentFilters != null)
+				{
+					if(this._HeadCellContentFilters[i] != null)
+					{
+						var filter = this._HeadCellContentFilters[i];
+						this._HTML += '<select id="' + this._filterId + '_' + i + '">';
+						this._HTML += '<option value="' + i + '_' + 'all" >' + Local.Text_Table_AllData + '</option>';
+						for(var j=0;j<filter.length;j++)
+						{
+							this._HTML += '<option value="' + i + '_' + j + '">' + filter[j] + '</option>';
+						}
+						this._HTML += '</select>';
+					}
+				}
+				this._HTML += '</td>';
+			}
+			this._HTML += '</tr>';
+		}
+		
         for (var i = 0; i < this._BodyCellContents.length; ++i) {
-            this._HTML += '<tr class="content_table_row_' + i % 2 + '">';
+            this._HTML += '<tr class="content_table_row_' + i % 2 
+			var rowStr = "";
+			var rowId = [];
             for (var j = 0; j < this._nColumns; ++j) {
-                this._HTML += '<td class="content_table" ' +
-                    this._BodyCellContentTypes[j] + '>' +
-                    this._BodyCellContents[i][j] + '</td>';
+				var rowspan = "";
+				var content = this._BodyCellContents[i][j];
+                if(content.show)
+				{
+					if(content.rowspan > 1)
+						rowspan = ' rowspan="' + content.rowspan + '" style="vertical-align: middle;" ';
+					rowStr += '<td class="content_table" ' + rowspan + 
+						this._BodyCellContentTypes[j] + '>' +
+						this._BodyCellContents[i][j].value + '</td>';
+				}
+				rowId.push(j + "_" + this._BodyCellContents[i][j].filterId);
             }
-            this._HTML += '</tr>';
+			this._HTML += '" id = "' + rowId.join(",") + '">' + rowStr + '</tr>';
         }
         this._HTML += '</table></div>';
 
@@ -593,19 +634,40 @@
         var node = document.getElementById(this._Id);
         if (!node)
             return;
+		var tableId = "table_" + this._Id;
+		var filterRowId = "filter_" + this._Id;
         var Title = node.getElementsByTagName("span")[0];
 
         function Factory(Id) {
             return function() {
                 CTable.OnClickTitle(Id);
             };
-        }
-        Title.addEventListener("click", Factory(this._Id), false);
-    };
+		}
+
+        function FactoryFilter(tableId,rowId) {
+            return function() {
+                CTable.OnChangeFilter(tableId,rowId);
+            };
+		}
+        Title.addEventListener("click", Factory(tableId), false);
+		
+		if(useFilter)
+		{
+			var filterRow = document.getElementById(filterRowId);
+			for(var i = 0; i< filterRow.cells.length; i++)
+			{
+				var cell = filterRow.cells[i];
+				var id = filterRowId + "_" + i;
+				var filter = document.getElementById(id);
+				if(filter)
+					filter.addEventListener("change", FactoryFilter(tableId,filterRowId), false);
+			}
+		}
+	};
 
     CTable.OnClickTitle = function(Id) {
         try {
-            var Table = document.getElementById(Id).getElementsByTagName("table")[0];
+            var Table = document.getElementById(Id);
             if (Table.hasAttribute("hide")) {
                 Table.removeAttribute("hide");
                 GM_setValue(Id, true);
@@ -618,7 +680,38 @@
         }
     };
 
-
+    CTable.OnChangeFilter = function(tableId,filterRowId) {
+        try {
+            var Table = document.getElementById(tableId);
+			var filterRow = document.getElementById(filterRowId);
+			var filters = [];
+			var filterString = "";
+			for(var i = 0; i< filterRow.cells.length; i++)
+			{
+				var cell = filterRow.cells[i];
+				var filter = document.getElementById(filterRow.id + "_" + i);
+				if(filter)
+					filters.push(filter.value);
+			}
+			for(var i = 2;i< Table.rows.length;i++)
+			{
+				var row = Table.rows[i];
+				var rowIds = row.id.split(",");
+				var show = true;
+				for(var fi =0; fi<filters.length;fi++)
+				{
+					if(filters[fi] != fi + "_all" && filters[fi] != rowIds[fi])
+					{
+						show = false;
+						break;
+					}
+				}
+				row.style.display = show? '':'none';
+			}
+        } catch (e) {
+            alert("CTable.OnChangeFilter(): " + e);
+        }
+    };
     ///////////////////////////////////////////////////////////////////////////////
     function CActiveInfo() {
         this.nIniRoll;
@@ -679,7 +772,10 @@
             },
             toString: function() {
                 return "";
-            }
+            },
+			toText: function() {
+				return this.toString();
+			}
         }
     });
 
@@ -733,7 +829,7 @@
             }
         },
         methods: {
-            GetType: function() {
+			GetType: function() {
                 return this._nType;
             },
             compareTo: function(that) {
@@ -747,7 +843,10 @@
                     return CreateElementHTML("a", this._Name, ["href", this._Href], ["onclick", this._OnClick], ["class", this._Class]);
                 else
                     return "";
-            }
+            },
+			toText: function() {
+				return this._Name != null? this._Name : "";
+			}
         },
         statics: {
             _GetCharType: function(Class) {
@@ -871,7 +970,10 @@
                     return CreateElementHTML("a", this._Name, ["href", this._Href], ["onclick", this._OnClick]);
                 else
                     return "";
-            }
+            },
+			toText: function() {
+				return this._Name != null? this._Name : "";
+			}
         }
     });
 
@@ -900,8 +1002,11 @@
                     return CreateElementHTML("a", this._Name, ["href", this._Href], ["onclick", this._OnClick], ["class", this._Class]);
                 else
                     return "";
-            }
-        }
+            },
+ 			toText: function() {
+				return this._Name != null? this._Name : "";
+			}
+       }
     });
 
 
@@ -1270,6 +1375,14 @@
 
     ///////////////////////////////////////////////////////////////////////////////
     // Class: Info list
+	function CCellContent(value,rowspan,show,filterId)
+	{
+		this.value = value;
+		this.rowspan = rowspan;
+		this.show = show;
+		this.filterId = filterId;
+	}
+	
     function CKeyType(name, type) {
         this.Name = name;
         this.Type = type;
@@ -1376,16 +1489,52 @@
                 return 0;
             },
             _SetTableBodyCellContents: function() {
-                for (var i = 0; i < this._gInfo.length; ++i) {
+                if(this._gInfo.length <=0)
+					return;
+				var tablecontent = [];
+				var keys = this._gInfo[0].gKey.length;
+				var filters = new Array(keys);
+				for(var i = 0; i< keys; i++)
+				{
+					var filter = [];
+					filters[i]=filter;
+				}
+				for (var i = 0; i < this._gInfo.length; ++i) {
                     var gBodyCellContent = [];
-                    for (var j = 0; j < this._gInfo[i].gKey.length; ++j)
-                        gBodyCellContent.push(this._gInfo[i].gKey[j]);
-
+					for (var j = 0; j < this._gInfo[i].gKey.length; ++j)
+					{
+						var value = this._gInfo[i].gKey[j];
+						var filter = value.toText();
+						if(filters[j].indexOf(filter) <= -1)
+							filters[j].push(filter);
+						gBodyCellContent.push(new CCellContent(value,1,j + "_" + true,filters[j].indexOf(filter)));
+					}
                     for (var j = 0; j < this._gValueName.length; ++j)
-                        gBodyCellContent.push(this._gValueName[j].getValue(this._gInfo[i]));
+                        gBodyCellContent.push(new CCellContent(this._gValueName[j].getValue(this._gInfo[i]),1,true,-1));
 
-                    this._Table.SetBodyCellContents.apply(this._Table, gBodyCellContent);
+                    tablecontent.push(gBodyCellContent);					
                 }
+				
+				this._Table.SetHeadCellContentFilters.apply(this._Table, filters);
+				
+				if(groupData)
+				{
+					for( var i = tablecontent.length -1; i > 0; i--)
+					{
+						for(var j=0;j<keys;j++)
+						{
+							if(tablecontent[i][j].value.compareTo(tablecontent[i-1][j].value) === 0)
+							{
+								tablecontent[i][j].show = false;
+								tablecontent[i-1][j].rowspan = tablecontent[i][j].rowspan + 1;
+							}
+							else
+								break;
+						}
+					}
+				}
+				for( var i = 0; i< tablecontent.length ;i++)
+                    this._Table.SetBodyCellContents.apply(this._Table, tablecontent[i]);
             },
             SaveInfo: function(Info) {},
             Output: function(isExport) {
@@ -2028,6 +2177,10 @@
     // GLOBAL VARIABLES ///////////////////////////////////////////////////////////
 
     var DEBUG = false;
+	
+	var groupData = false;
+	
+	var useFilter = true;
 
     var Contents = {
         OrigText_Button_DungeonDetails: ["details",
@@ -2135,7 +2288,9 @@
         Text_Table_RollList: ["Roll list",
         "数值列表"],
         Text_Table_ItemDamagePoints: ["Damage Points",
-        "损坏点数"]
+        "损坏点数"],
+        Text_Table_AllData: ["All",
+        "全部"]
     };
 
     var Style = "div.stat_header {margin:1em auto 0.5em auto;} " +
