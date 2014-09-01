@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.0 beta
+// @version			2.0
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -23,8 +23,8 @@
 // @require			https://raw.githubusercontent.com/eligrey/FileSaver.js/master/FileSaver.js
 // @require			https://raw.githubusercontent.com/Stuk/jszip/master/dist/jszip.js
 // @require			http://malsup.github.com/jquery.form.js
-// @updateURL		https://bitbucket.org/wod/extra_statistics/raw/default/scripts/extra_statistics.user.js
-// @downloadURL		https://bitbucket.org/wod/extra_statistics/raw/default/scripts/extra_statistics.user.js
+// @updateURL		https://bitbucket.org/wod/extra_statistics/raw/with_report_export/scripts/extra_statistics.user.js
+// @downloadURL		https://bitbucket.org/wod/extra_statistics/raw/with_report_export/scripts/extra_statistics.user.js
 // ==/UserScript==
 (function() {
     // COMMON FUNCTIONS ///////////////////////////////////////////////////////////
@@ -109,7 +109,7 @@
     function getSum(numArr) {
         var nTotal = 0;
         for (var i = 0; i < numArr.length; i++) {
-            nTotal = nTotal + numArr[i]
+            nTotal = nTotal + Number(numArr[i])
         };
         return nTotal;
     }
@@ -127,7 +127,7 @@
         var nAvg = getAverage(numArr);
         var nTempSum = 0;
         for (var i = 0; i < numArr.length; i++) {
-            nTempSum = nTempSum + Math.pow((numArr[i] - nAvg), 2);
+            nTempSum = nTempSum + Math.pow((Number(numArr[i]) - nAvg), 2);
         };
         return (nTempSum / (numArr.length - 1));
     }
@@ -444,6 +444,7 @@
                 this._Node = NewSection;
                 newNode.appendChild(NewSection);
             }
+			this._HTML = '';
         };
         this.setNode(NextNode);
     }
@@ -579,16 +580,16 @@
         this._HTML += '</tr>';
 		if(useFilter)
 		{
-			this._HTML += '<tr id="' + this._filterId + '">';
-			for (var i = 0; i < this._nColumns; ++i)
+			this._HTML += '<tr id="' + this._filterId + '" class="content_table_filter_row">';
+			for (var i = 0; i < this._nColumns-1; ++i)
 			{
-				this._HTML += '<td class="content_table_filter_row">';
+				this._HTML += '<td>';
 				if(this._HeadCellContentFilters != null)
 				{
 					if(this._HeadCellContentFilters[i] != null)
 					{
 						var filter = this._HeadCellContentFilters[i];
-						this._HTML += '<select id="' + this._filterId + '_' + i + '">';
+						this._HTML += '<select id="' + this._filterId + "_combobox_" + i + '">';
 						this._HTML += '<option value="' + i + '_' + 'all" >' + Local.Text_Table_AllData + '</option>';
 						for(var j=0;j<filter.length;j++)
 						{
@@ -596,14 +597,16 @@
 						}
 						this._HTML += '</select>';
 					}
+					else
+						this._HTML += '<input type="text" id="' + this._filterId + "_textbox_" + i + '" size="8">';
 				}
 				this._HTML += '</td>';
 			}
-			this._HTML += '</tr>';
+			this._HTML += '<td><input type="button" class="button" value="查询" id="' + this._filterId + "_button" + '"></td></tr>';
 		}
 		
         for (var i = 0; i < this._BodyCellContents.length; ++i) {
-            this._HTML += '<tr class="content_table_row_' + i % 2 
+            this._HTML += '<tr class="row' + i % 2 
 			var rowStr = "";
 			var rowId = [];
             for (var j = 0; j < this._nColumns; ++j) {
@@ -649,18 +652,23 @@
                 CTable.OnChangeFilter(tableId,rowId);
             };
 		}
+
         Title.addEventListener("click", Factory(tableId), false);
 		
 		if(useFilter)
 		{
 			var filterRow = document.getElementById(filterRowId);
+			var buttonid = filterRowId + "_button";
+			var filterbutton = document.getElementById(buttonid);
+			if(filterbutton)
+				filterbutton.addEventListener("click", FactoryFilter(tableId,filterRowId), false);
 			for(var i = 0; i< filterRow.cells.length; i++)
 			{
 				var cell = filterRow.cells[i];
-				var id = filterRowId + "_" + i;
-				var filter = document.getElementById(id);
-				if(filter)
-					filter.addEventListener("change", FactoryFilter(tableId,filterRowId), false);
+				var comboboxid = filterRowId + "_combobox_" + i;
+				var comboboxfilter = document.getElementById(comboboxid);
+				if(comboboxfilter)
+					comboboxfilter.addEventListener("change", FactoryFilter(tableId,filterRowId), false);
 			}
 		}
 	};
@@ -679,34 +687,119 @@
             alert("CTable.OnClickTitle(): " + e);
         }
     };
-
+	
     CTable.OnChangeFilter = function(tableId,filterRowId) {
         try {
             var Table = document.getElementById(tableId);
 			var filterRow = document.getElementById(filterRowId);
-			var filters = [];
+			var stringfilters = [];
+			var numberfilters = [];
 			var filterString = "";
 			for(var i = 0; i< filterRow.cells.length; i++)
 			{
 				var cell = filterRow.cells[i];
-				var filter = document.getElementById(filterRow.id + "_" + i);
-				if(filter)
-					filters.push(filter.value);
+				var stringfilter = document.getElementById(filterRow.id + "_combobox_" + i);
+				var numberfilter = document.getElementById(filterRow.id + "_textbox_" + i);
+				if(stringfilter)
+					stringfilters.push(stringfilter.value);
+				else
+					stringfilters.push(null);
+				if(numberfilter)
+					numberfilters.push(numberfilter.value);
+				else
+					numberfilters.push(null);
 			}
+			var index = 0;
 			for(var i = 2;i< Table.rows.length;i++)
 			{
 				var row = Table.rows[i];
 				var rowIds = row.id.split(",");
 				var show = true;
-				for(var fi =0; fi<filters.length;fi++)
+				for(var fi =0; fi<stringfilters.length;fi++)
 				{
-					if(filters[fi] != fi + "_all" && filters[fi] != rowIds[fi])
+					var sfiler = stringfilters[fi];
+					if(!sfiler)
+						continue;
+					if(sfiler != fi + "_all" && sfiler != rowIds[fi])
 					{
 						show = false;
 						break;
 					}
 				}
+				if(show)
+				{
+					var patten = /([\(|\[|>|<|=|]*)\s*([\d]*\.?[\d]*)\s*-?\s*([\d]*\.?[\d]*)\s*([\)|\]|\s]?)/;
+					var numberPatten = /^\s?([\d]+\.?[\d]*)\s?_?\s?([\d]*\.?[\d]*)\s?$/;
+					for(fi=0;fi<numberfilters.length;fi++)
+					{
+						var pairTable = row.cells[fi].firstChild;
+						var numberString = row.cells[fi].textContent;
+						if(pairTable && pairTable.nodeName == "TABLE")
+						{
+							numberString = pairTable.id;
+						}
+						if(!numberPatten.test(numberString))
+							continue;
+						var numberres = numberPatten.exec(numberString);
+						var numners = [];
+						if(numberres[1])
+							numners.push(numberres[1]);
+						if(numberres[2])
+							numners.push(numberres[2]);
+						var nfilter = numberfilters[fi];
+						
+						if(!nfilter)
+							continue;
+						else 
+						{
+							var nfilters = nfilter.split(/\s*[,|，]\s*/);
+							for(ni = 0; ni < numners.length; ni++)
+							{
+								var theFilter = nfilters[ni];
+								var testString = "";
+								if(patten.test(theFilter))
+								{
+									var	op = "==";
+									var res = patten.exec(theFilter);
+									if(res[1])
+									{
+										op = res[1];
+										if(res[3])
+										if( op == "[") op = ">=";
+										if( op == "(") op = ">";
+										if( op == "=") op = "==";
+									}
+									if(res[3])
+										op = ">=";
+									testString = numners[ni] + op + res[2];
+									if(res[3])
+									{
+										op = "<=";
+										if(res[4])
+										{
+											op = res[4]
+											if( op == "]") op = "<=";
+											if( op == ")") op = "<";
+										}
+										testString += " && " + numners[ni] + op + res[3];
+									}
+									show = eval(testString);
+									if(!show)
+										break;
+								}
+							}
+						}
+						if(!show)
+							break;
+					}
+				}
 				row.style.display = show? '':'none';
+				if(show)
+				{
+					row.className = "row" + index % 2;
+					index++;
+				}
+				
 			}
         } catch (e) {
             alert("CTable.OnChangeFilter(): " + e);
@@ -1057,6 +1150,29 @@
     CHitType.GOOD = 2;
     CHitType.CRIT = 3;
 
+    // heal type
+    var CHealType = DefineClass({
+        extend: CKey,
+        construct: function(HealText) {
+            this._sType;
+
+            if (HealText != null) {
+                this._sType = HealText;
+            }
+        },
+        methods: {
+            GetType: function() {
+                return this._sType;
+            },
+            compareTo: function(that) {
+                return CompareString(this._sType, that._sType);
+            },
+            toString: function() {
+                return this._sType;
+            }
+        }
+    });
+
     // Damage Type
     var CDamageType = DefineClass({
         extend: CKey,
@@ -1209,7 +1325,7 @@
             Calculate: function() {
                 var nTotalValue = 0;
                 for (var i = 0; i < this._gValue.length; ++i)
-                    nTotalValue += this._gValue[i];
+                    nTotalValue += Number(this._gValue[i]);
                 this._nAvgValue = Number((nTotalValue / this._gValue.length).toFixed(2));
                 this._nMaxValue = getMax(this._gValue);
                 this._nMinValue = getMin(this._gValue);
@@ -1283,7 +1399,8 @@
         },
         statics: {
             _GetString: function(data) {
-                return '<table class="pair_value"><tr><td>' +
+                var id = data[0] + "_" + data[1];
+				return '<table class="pair_value" id="' + id + '"><tr><td>' +
                     ((data[0] !== 0) ? String(data[0]) : '') +
                     '</td><td>' +
                     ((data[1] !== 0) ? String(data[1]) : '') +
@@ -1365,7 +1482,8 @@
         },
         statics: {
             _GetString: function(data) {
-                return '<table class="pair_value"><tr><td>' +
+				var id = data[1] + "_" + data[0];
+				return '<table class="pair_value" id="' + id + '"><tr><td>' +
                     data[1] + '</td><td>' +
                     data[0] + '</td></tr></table>';
             }
@@ -1451,6 +1569,10 @@
         return new CKeyType(Local.Text_Table_Position, "string");
     }
 
+    CKeyType.HealType = function() {
+        return new CKeyType(Local.Text_Table_HealType, "string");
+    }
+	
     CKeyType.DamageType = function() {
         return new CKeyType(Local.Text_Table_DamageType, "string");
     }
@@ -1735,15 +1857,18 @@
     var CILHeal = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
-            this.superclass(CValueList, Local.Text_Table_Heal, "stat_heal", [CKeyType.Char(), CKeyType.Skill(), CKeyType.Item()],
+            this.superclass(CValueList, Local.Text_Table_Heal, "stat_heal", [CKeyType.Char(), CKeyType.Skill(), CKeyType.Item(), CKeyType.HealType()],
                 CKeyType.ValueName());
         },
         methods: {
             SaveInfo: function(Info) {
                 if (Info.Active.ActionType.GetKind() === CActionType.HEAL) {
                     for (var i = 0; i < Info.gPassive.length; ++i) {
-                        if (Info.gPassive[i].nHealedHP != null || Info.gPassive[i].nHealedMP != null)
-                            this.push([Info.Active.Char, Info.Active.Skill, Info.Active.gItem], [Info.gPassive[i].nHealedHP, Info.gPassive[i].nHealedMP]);
+                        if (Info.gPassive[i].nHealedHP != null)
+							this.push([Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
+
+						if (Info.gPassive[i].nHealedMP != null)
+                            this.push([Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
                     }
                 }
             }
@@ -1754,15 +1879,18 @@
     var CILHealed = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
-            this.superclass(CValueList, Local.Text_Table_Healed, "stat_healed", [CKeyType.Char()],
+            this.superclass(CValueList, Local.Text_Table_Healed, "stat_healed", [CKeyType.Char(), CKeyType.HealType()],
                 CKeyType.ValueName());
         },
         methods: {
             SaveInfo: function(Info) {
                 if (Info.Active.ActionType.GetKind() === CActionType.HEAL) {
                     for (var i = 0; i < Info.gPassive.length; ++i) {
-                        if (Info.gPassive[i].nHealedHP != null || Info.gPassive[i].nHealedMP != null)
-                            this.push([Info.gPassive[i].Char], [Info.gPassive[i].nHealedHP, Info.gPassive[i].nHealedMP]);
+                        if (Info.gPassive[i].nHealedHP != null)
+                            this.push([Info.gPassive[i].Char,new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
+
+						if(Info.gPassive[i].nHealedMP != null)
+                            this.push([Info.gPassive[i].Char,new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
                     }
                 }
             }
@@ -1847,7 +1975,7 @@
         var allRows = page.getElementsByTagName("tr");
         for (var i = 0; i < allRows.length; ++i) {
             if (allRows[i].className != null &&
-                allRows[i].className.indexOf("content_table_row_") === 0) {
+                rValue.Pattern_logRow.test(allRows[i].className)) {
                 var allH1 = allRows[i].getElementsByTagName("h1");
                 if (allH1[0] != null &&
                     allH1[0].firstChild != null &&
@@ -2257,6 +2385,8 @@
         "伤害"],
         Text_Table_DamageType: ["Damage Type",
         "伤害类型"],
+        Text_Table_HealType: ["Heal Type",
+        "治疗类型"],
         Text_Table_Heal: ["Healing By The Hero",
         "给予治疗"],
         Text_Table_Healed: ["Healing On The Hero",
@@ -2330,8 +2460,8 @@
         theStat.RegInfoList(new CILAttackRoll(CVLNumber, isExport));
         theStat.RegInfoList(new CILDefenceRoll(CVLNumber, isExport));
         theStat.RegInfoList(new CILDamage(CVLDamage, isExport));
-        theStat.RegInfoList(new CILHeal(CVLPairNumber, isExport));
-        theStat.RegInfoList(new CILHealed(CVLPairNumber, isExport));
+        theStat.RegInfoList(new CILHeal(CVLNumber, isExport));
+        theStat.RegInfoList(new CILHealed(CVLNumber, isExport));
         theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
         return theStat;
     }
@@ -2506,35 +2636,29 @@
     // return: an array, [0]: nCurrRepPage, [1]: nMaxRepPage
     function GetRepPageInfo(page, DefaultValue) {
         var ret = [DefaultValue[0], DefaultValue[1]];
-
-        var SubPageIndexNode;
         var allInputs = page.getElementsByTagName("input");
+		var IndexPatt = /=([\d]+)=/;
+		var pages = [];
         for (var i = 0; i < allInputs.length; ++i) {
-            if (allInputs[i].value.indexOf("=1=") !== -1) {
-                SubPageIndexNode = allInputs[i];
-                break;
-            }
-        }
-        if (SubPageIndexNode == null) {
-            return ret;
-        };
-
-        var bIndexEnd = false;
-        while (!bIndexEnd) {
-            var IndexPatt = /=([\d]+)=/;
-            var target = (SubPageIndexNode.value == null) ? SubPageIndexNode.firstChild.textContent : SubPageIndexNode.value;
-            var Result = IndexPatt.exec(target);
-            var nCurrIndex = Number(Result[1]);
-
-            if (SubPageIndexNode.className == "paginator_selected clickable")
-                ret[0] = nCurrIndex;
-
-            SubPageIndexNode = node_after(node_after(SubPageIndexNode));
-            if (SubPageIndexNode == null || SubPageIndexNode.nodeName != "A") {
-                ret[1] = nCurrIndex;
-                bIndexEnd = true;
-            }
-        };
+            var theInput = allInputs[i];
+			if(theInput.className == "paginator_selected clickable")
+			{
+				var Result = IndexPatt.exec(theInput.value);
+				pages.push(Number(Result[1]));
+				ret[0] = Number(Result[1]);
+			}
+		}
+        allInputs = page.getElementsByTagName("a");
+        for (var i = 0; i < allInputs.length; ++i) {
+            var theInput = allInputs[i];
+			if(theInput.className == "paginator")
+			{
+				var Result = IndexPatt.exec(theInput.textContent);
+				pages.push(Number(Result[1]));
+			}
+		} 		
+		if(pages.length > 0)
+			ret[1] = Math.max.apply(Math, pages);
 
         return ret;
     }
@@ -2569,7 +2693,7 @@
         var allCheckbox = document.getElementsByTagName("input");
         for (var i = 0; i < allCheckbox.length; ++i) {
             var theCheckbox = allCheckbox[i];
-            if (rVaule.Pattern_checkboxName.test(theCheckbox.getAttribute("name"))) {
+            if (rValue.Pattern_checkboxName.test(theCheckbox.getAttribute("name"))) {
                 theCheckbox.checked = select;
             }
         }
@@ -2589,12 +2713,14 @@
         //if (gIsWorking && !DEBUG)
         //    return;
         gIsWorking = true;
+		var includeCheckbox = document.getElementById(rValue.Chk_includeData);
+		includeData = includeCheckbox.checked;
         var allCheckbox = document.getElementsByTagName("input");
         gZip = new JSZip();
         gSelectedReport = [];
         for (var i = 0; i < allCheckbox.length; ++i) {
             var theCheckbox = allCheckbox[i];
-            if (rVaule.Pattern_checkboxName.test(theCheckbox.getAttribute("name"))) {
+            if (rValue.Pattern_checkboxName.test(theCheckbox.getAttribute("name"))) {
                 if (theCheckbox.checked) {
                     gSelectedReport.push(theCheckbox);
                 }
@@ -2607,7 +2733,11 @@
             var table = document.createElement("div");
             gCurrentReport = gSelectedReport[0];
             StatEntireDiv = document.createElement("div");
-            StatEntire = CreateStat(StatEntireDiv, true);
+            if(includeData)
+			{
+				StatEntireDiv = document.createElement("div");
+				StatEntire = CreateStat(StatEntireDiv, true);
+			}
             GetLevelPage(1, 1);
         } else {
             window.alert("没有选择任何战报");
@@ -2665,23 +2795,43 @@
         var nCurrRepPage = ret[0];
         var nMaxRepPage = ret[1];
 
-        if (nCurrRepPage == 1) {
+        if (includeData && nCurrRepPage == 1) {
             Stat = CreateStat(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling), true);
             Stat.nTotalPages = nMaxRepPage;
-
         }
-
+		if(nMaxRepPage > 1)
+		{
+			var copyDiv = document.createElement("div");
+			copyDiv.innerHTML = gResponseDiv.innerHTML;
+			multiPageDiv.push(copyDiv);
+		}
+		else
+			multiPageDiv.push(gResponseDiv);
+		
         var maxLevel = gCurrentReport.getAttribute("maxLevel");
         infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + gCurrentReport.getAttribute("title") + " - 第 " + nLevel + "/" + maxLevel + " 层详细资料";
 
-        var theFileName = gCurrentReport.value + "/level" + nLevel + ".html";
-        if (nCurrRepPage > 1) {
-            theFileName = gCurrentReport.value + "/level" + nLevel + "_" + nCurrRepPage + ".html";
-        }
-        CountStat(gResponseDiv, (nCurrRepPage === nMaxRepPage), true);
-        Stat.Export();
-        es_addStyle(gResponseDiv, Style);
-        gZip.file(theFileName, handlePage(gResponseDiv));
+        if(includeData)
+			CountStat(gResponseDiv, (nCurrRepPage === nMaxRepPage), true);
+        if(nCurrRepPage === nMaxRepPage)
+		{
+			for(var i = 0; i< multiPageDiv.length ; i++)
+			{
+				var thepage = multiPageDiv[i];
+				var theFileName = gCurrentReport.value + "/level" + nLevel + ".html";
+				if (i > 0) {
+					theFileName = gCurrentReport.value + "/level" + nLevel + "_" + (i+1) + ".html";
+				}
+				if(includeData)
+				{
+					Stat.setNode(node_before(thepage.getElementsByTagName("h2")[0].nextSibling));				
+					Stat.Export();
+					es_addStyle(thepage, Style);
+				}
+				gZip.file(theFileName, handlePage(thepage,nLevel));
+			}
+			multiPageDiv = [];
+		}
 
         if (nCurrRepPage < nMaxRepPage)
             GetLevelPage(nLevel, nCurrRepPage + 1);
@@ -2692,7 +2842,7 @@
     }
 
     function GetStatPage() {
-        var queryString = $("form[name='the_form']").formSerialize() + "&IS_POPUP=1&" + gCurrentReport.getAttribute(rVaule.Text_Stat) + "=" + rVaule.Text_Stat;
+        var queryString = $("form[name='the_form']").formSerialize() + "&IS_POPUP=1&" + gCurrentReport.getAttribute(rValue.Text_Stat) + "=" + rValue.Text_Stat;
         var XmlHttp = new XMLHttpRequest();
 
         XmlHttp.onreadystatechange = function() {
@@ -2700,9 +2850,12 @@
                 if (XmlHttp.readyState == 4 && XmlHttp.status == 200) {
                     gResponseDiv.innerHTML = XmlHttp.responseText;
                     infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + gCurrentReport.getAttribute("title") + " - 统计表";
-                    StatEntire.setNode(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling));
-                    StatEntire.Export();
-                    es_addStyle(gResponseDiv, Style);
+                    if(includeData)
+					{
+						StatEntire.setNode(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling));
+						StatEntire.Export();
+						es_addStyle(gResponseDiv, Style);
+					}
                     gZip.file(gCurrentReport.value + "/statistics.html", handlePage(gResponseDiv));
                     GetItemPage();
                 }
@@ -2721,7 +2874,7 @@
     }
 
     function GetItemPage() {
-        var queryString = $("form[name='the_form']").formSerialize() + "&IS_POPUP=1&" + gCurrentReport.getAttribute(rVaule.Text_Item) + "=" + rVaule.Text_Item;
+        var queryString = $("form[name='the_form']").formSerialize() + "&IS_POPUP=1&" + gCurrentReport.getAttribute(rValue.Text_Item) + "=" + rValue.Text_Item;
         var XmlHttp = new XMLHttpRequest();
 
         XmlHttp.onreadystatechange = function() {
@@ -2769,15 +2922,15 @@
         XmlHttp.send(queryString);
     }
 
-    function GetMaxLevel(Document, DefaultValue) {
+    function GetMaxLevel(page, DefaultValue) {
         var ret = DefaultValue;
 
-        var allInputs = Document.getElementsByTagName("input");
+        var allInputs = page.getElementsByTagName("input");
         for (var i = 0; i < allInputs.length; ++i) {
             var name = allInputs[i].getAttribute("name");
 
-            if (rVaule.Pattern_level.test(name)) {
-                var levelnumber = Number(rVaule.Pattern_idNumber.exec(name)[1]);
+            if (rValue.Pattern_level.test(name)) {
+                var levelnumber = Number(rValue.Pattern_idNumber.exec(name)[1]);
                 if (levelnumber > ret)
                     ret = levelnumber;
             }
@@ -2785,43 +2938,7 @@
         return ret;
     }
 
-    // return: an array, [0]: nCurrRepPage, [1]: nMaxRepPage
-    function GetRepPageInfo(Document, DefaultValue) {
-        var ret = [DefaultValue[0], DefaultValue[1]];
-
-        var SubPageIndexNode;
-        var allInputs = Document.getElementsByTagName("input");
-        for (var i = 0; i < allInputs.length; ++i) {
-            if (allInputs[i].value.indexOf("=1=") !== -1) {
-                SubPageIndexNode = allInputs[i];
-                break;
-            }
-        }
-        if (SubPageIndexNode == null) {
-            return ret;
-        };
-
-        var bIndexEnd = false;
-        while (!bIndexEnd) {
-            var IndexPatt = /=([\d]+)=/;
-            var target = (SubPageIndexNode.value == null) ? SubPageIndexNode.firstChild.textContent : SubPageIndexNode.value;
-            var Result = IndexPatt.exec(target);
-            var nCurrIndex = Number(Result[1]);
-
-            if (SubPageIndexNode.className == "paginator_selected clickable")
-                ret[0] = nCurrIndex;
-
-            SubPageIndexNode = node_after(node_after(SubPageIndexNode));
-            if (SubPageIndexNode == null || SubPageIndexNode.nodeName != "A") {
-                ret[1] = nCurrIndex;
-                bIndexEnd = true;
-            }
-        };
-
-        return ret;
-    }
-
-    function handlePage(page) {
+    function handlePage(page,nLevel) {
         if (gTitle == null)
             gTitle = "我的战报";
         page.getElementsByTagName('title')[0].innerHTML = gTitle;
@@ -2836,6 +2953,8 @@
         replaceURL(page, "img", "src");
         replaceURL(page, "a", "href");
         replaceButton(page);
+		if(nLevel)
+			replaceLevelPage(page,nLevel);
         return replaceOther(page.outerHTML);
     }
 
@@ -2867,7 +2986,7 @@
             var link = allLink[i];
             if (link.hasAttribute(attr)) {
                 var uri = link.getAttribute(attr);
-                if (!rVaule.pattern_http.test(uri)) {
+                if (!rValue.pattern_http.test(uri)) {
                     if (test_pattern.test(uri)) {
                         link.setAttribute(attr, location.origin + uri)
                     } else if (!test1_pattern.test(uri)) {
@@ -2885,25 +3004,25 @@
         for (var i = 0; i < allInputs.length; ++i) {
             var name = allInputs[i].getAttribute("name");
 
-            if (rVaule.Pattern_level.test(name)) {
-                var levelURL = "document.location.href='level" + rVaule.Pattern_idNumber.exec(name)[1] + ".html';";
+            if (rValue.Pattern_level.test(name)) {
+                var levelURL = "document.location.href='level" + rValue.Pattern_idNumber.exec(name)[1] + ".html';";
                 var button = allInputs[i];
                 button.setAttribute("type", "button");
                 button.setAttribute("onclick", levelURL);
             }
-            if (rVaule.Pattern_item.test(name)) {
+            if (rValue.Pattern_item.test(name)) {
                 var levelURL = "document.location.href='items.html';";
                 var button = allInputs[i];
                 button.setAttribute("type", "button");
                 button.setAttribute("onclick", levelURL);
             }
-            if (rVaule.Pattern_stat.test(name)) {
+            if (rValue.Pattern_stat.test(name)) {
                 var levelURL = "document.location.href='statistics.html';";
                 var button = allInputs[i];
                 button.setAttribute("type", "button");
                 button.setAttribute("onclick", levelURL);
             }
-            if (rVaule.Pattern_detail.test(name)) {
+            if (rValue.Pattern_detail.test(name)) {
                 var levelURL = "document.location.href='level1.html';";
                 var button = allInputs[i];
                 button.setAttribute("type", "button");
@@ -2917,8 +3036,22 @@
             }
         }
     }
-
-    function replaceDate(sDate) {
+	function replaceLevelPage(page,nLevel)
+	{
+		var IndexPatt = /=([\d]+)=/;
+        allURL = page.getElementsByTagName("a");
+        for (var i = 0; i < allURL.length; ++i) {
+            var theURL = allURL[i];
+			if(theURL.className == "paginator")
+			{
+				var Result = IndexPatt.exec(theURL.textContent);
+				var pageNum = Number(Result[1]);
+				theURL.href = "level" + nLevel + (pageNum > 1? "_" + pageNum:"") + ".html";
+			}
+		}
+	}
+    
+	function replaceDate(sDate) {
         var today = new Date();
         var yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
@@ -2932,12 +3065,13 @@
         ret = ret.replace(/wo\('\/wod/g, "wo('" + location.origin + "/wod");
         return ret;
     }
+	
 
     function prepareIndexPageTemplate() {
         var allRow = gIndexTemplateDiv.getElementsByTagName("tr");
         for (var j = allRow.length - 1; j > 1; --j) {
             var row = allRow[j];
-            if (rVaule.Pattern_logRow.test(row.getAttribute("class"))) {
+            if (rValue.Pattern_logRow.test(row.getAttribute("class"))) {
                 row.parentNode.removeChild(row);
             }
         }
@@ -2967,8 +3101,10 @@
     var gSelectedReport = [];
     var gIndexTemplateDiv;
     var gResponseDiv;
+	var multiPageDiv = [];
     var gIndexDiv;
     var gIsWorking = false;
+	var includeData = false;
     var rContents = {
         OrigText_H1_DungeonLog: ["Battle Report",
             "战报"
@@ -2988,10 +3124,11 @@
 
     };
 
-    var rVaule = {
+    var rValue = {
             Text_Item: "items",
             Text_Stat: "stats",
             Text_Checkbox: "chkLog",
+			Chk_includeData: "export_with_data",
             Pattern_level: /^level\[[\d]+\]/,
             Pattern_stat: /^stats\[[\d]+\]/,
             Pattern_item: /^items\[[\d]+\]/,
@@ -3000,7 +3137,7 @@
             Pattern_logRow: /^row\d/,
             Pattern_idNumber: /([\d]+)/,
             pattern_http: /^http/i
-        }
+        };
         //-----------------------------------------------------------------------------
         // "main"
         //-----------------------------------------------------------------------------    
@@ -3020,9 +3157,21 @@
                 infodiv = document.createElement("div");
                 infodiv.innerHTML = "";
                 h1.parentNode.insertBefore(infodiv, h1.nextSibling);
+				var newSpan = document.createElement("span");
+				newSpan.innerHTML = "同时保存统计信息";
+				h1.parentNode.insertBefore(newSpan, h1.nextSibling);
+				var newCheckBox = document.createElement("input");
+				newCheckBox.setAttribute("type", "checkbox");
+				newCheckBox.setAttribute("class", "checkbox");
+				newCheckBox.setAttribute("value", "同时保存统计信息");
+				newCheckBox.id = "export_with_data";
+				h1.parentNode.insertBefore(newCheckBox, h1.nextSibling);
                 InsertButton(h1, rLocal.Text_Button_Exportlog, exportLog);
                 InsertButton(h1, rLocal.Text_Button_ClearAll, cleartAll);
                 InsertButton(h1, rLocal.Text_Button_SelectAll, selectAll);
+
+				
+				
                 gResponseDiv = document.createElement("div");
                 gResponseDiv.innerHTML = "";
                 gIndexTemplateDiv = document.createElement("div");
@@ -3045,7 +3194,7 @@
                     var row = allRow[j];
                     var newCheckbox = document.createElement("input");
                     newCheckbox.setAttribute("type", "checkbox");
-                    if (rVaule.Pattern_logRow.test(row.getAttribute("class"))) {
+                    if (rValue.Pattern_logRow.test(row.getAttribute("class"))) {
                         var reportName = "<span>" + row.cells[1].firstChild.innerHTML + "</span>";
                         var reportTime = "<span>" + row.cells[0].firstChild.innerHTML + "</span>";
                         var title = reportName + "&nbsp;-&nbsp;" + reportTime;
@@ -3057,21 +3206,21 @@
                             var name = input.getAttribute("name");
                             var value = input.getAttribute("value");
                             if (name.indexOf("report_id") != -1) {
-                                var Result = rVaule.Pattern_idNumber.exec(name);
+                                var Result = rValue.Pattern_idNumber.exec(name);
                                 index = Number(Result[1]);
                                 id = value;
                                 break;
                             }
                         }
-                        newCheckbox.setAttribute("name", rVaule.Text_Checkbox + "[" + index + "]");
-                        newCheckbox.setAttribute("id", rVaule.Text_Checkbox + "[" + index + "]");
+                        newCheckbox.setAttribute("name", rValue.Text_Checkbox + "[" + index + "]");
+                        newCheckbox.setAttribute("id", rValue.Text_Checkbox + "[" + index + "]");
                         newCheckbox.setAttribute("value", id);
                         newCheckbox.setAttribute("title", title);
                         newCheckbox.setAttribute("reportname", reportName);
                         newCheckbox.setAttribute("reporttime", reportTime);
                         newCheckbox.setAttribute("maxLevel", 1);
-                        newCheckbox.setAttribute(rVaule.Text_Item, rVaule.Text_Item + "%5B" + index + "%5D");
-                        newCheckbox.setAttribute(rVaule.Text_Stat, rVaule.Text_Stat + "%5B" + index + "%5D");
+                        newCheckbox.setAttribute(rValue.Text_Item, rValue.Text_Item + "%5B" + index + "%5D");
+                        newCheckbox.setAttribute(rValue.Text_Stat, rValue.Text_Stat + "%5B" + index + "%5D");
                         row.cells[0].insertBefore(newCheckbox, row.cells[0].firstChild);
                     }
                 }
