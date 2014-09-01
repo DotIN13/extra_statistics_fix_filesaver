@@ -2710,8 +2710,8 @@
     }
 
     function exportLog() {
-        //if (gIsWorking && !DEBUG)
-        //    return;
+        if (gIsWorking && !DEBUG)
+            return;
         gIsWorking = true;
 		var includeCheckbox = document.getElementById(rValue.Chk_includeData);
 		includeData = includeCheckbox.checked;
