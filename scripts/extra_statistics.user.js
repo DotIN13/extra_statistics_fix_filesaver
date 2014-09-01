@@ -757,7 +757,7 @@
 							{
 								var theFilter = nfilters[ni];
 								var testString = "";
-								if(patten.test(theFilter))
+								if(theFilter && patten.test(theFilter))
 								{
 									var	op = "==";
 									var res = patten.exec(theFilter);
