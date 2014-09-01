@@ -769,8 +769,11 @@
 										if( op == "(") op = ">";
 										if( op == "=") op = "==";
 									}
-									if(res[3])
-										op = ">=";
+									else
+									{
+										if(res[3])
+											op = ">=";
+									}
 									testString = numners[ni] + op + res[2];
 									if(res[3])
 									{
