@@ -567,12 +567,13 @@
     };
 
     CTable.prototype.CreateHTML = function() {
-        var exportString = '" onclick="if(this.parentNode.nextSibling.style.display == ' + "'none' ){this.parentNode.nextSibling.style.display='';} else {this.parentNode.nextSibling.style.display='none'" + '};"';
+        var exportString = ' onclick="if(this.parentNode.nextSibling.style.display == ' + "'none' ){this.parentNode.nextSibling.style.display='';} else {this.parentNode.nextSibling.style.display='none'" + '};"';
         if (!this._isExport)
             exportString = "";
+		var tableid = "table_" + this._Id
         this._HTML = '<div id="' + this._Id + '">' +
-            '<div class="stat_header"><span class="stat_title clickable" ' + exportString + '>' + this._Title + '</span></div>' +
-            '<table class="content_table" id="table_' + this._Id + '" ' + (this._bShow ? '' : 'hide="hide"') + '>' +
+            '<div class="stat_header"><span class="stat_title clickable"' + exportString + '>' + this._Title + '</span></div>' +
+            '<table class="content_table" id="' + tableid + '" ' + (this._bShow ? '' : 'hide="hide"') + '>' +
             '<tr class="content_table_header">';
 
         for (var i = 0; i < this._nColumns; ++i)
@@ -589,7 +590,11 @@
 					if(this._HeadCellContentFilters[i] != null)
 					{
 						var filter = this._HeadCellContentFilters[i];
-						this._HTML += '<select id="' + this._filterId + "_combobox_" + i + '">';
+						var comboxboxid = this._filterId + "_combobox_" + i ;
+						this._HTML += '<select id="' + comboxboxid + '"';
+						if(this._isExport)
+							this._HTML += ' onchange="f(' +"'" + tableid + "','" + this._filterId + "'" + ');"';
+						this._HTML += '>';
 						this._HTML += '<option value="' + i + '_' + 'all" >' + Local.Text_Table_AllData + '</option>';
 						for(var j=0;j<filter.length;j++)
 						{
@@ -602,7 +607,10 @@
 				}
 				this._HTML += '</td>';
 			}
-			this._HTML += '<td><input type="button" class="button" value="查询" id="' + this._filterId + "_button" + '"></td></tr>';
+			this._HTML += '<td><input type="button" class="button" value="查询" id="' + this._filterId + "_button" + '"';
+			if(this._isExport)
+				this._HTML += ' onclick="f(' +"'" + tableid + "','" + this._filterId + "'" +  ');"';
+			this._HTML += '></td></tr>';
 		}
 		
         for (var i = 0; i < this._BodyCellContents.length; ++i) {
@@ -2732,7 +2740,10 @@
 
         if (gSelectedReport.length > 0) {
             gTitle = window.prompt("输入战报名称", "我的战报");
-            gIndexDiv = gIndexTemplateDiv.cloneNode(true);
+			headDiv = document.getElementsByTagName('head')[0].cloneNode(true);
+			handleHead(headDiv);
+
+			gIndexDiv = gIndexTemplateDiv.cloneNode(true);
             var table = document.createElement("div");
             gCurrentReport = gSelectedReport[0];
             StatEntireDiv = document.createElement("div");
@@ -2829,7 +2840,6 @@
 				{
 					Stat.setNode(node_before(thepage.getElementsByTagName("h2")[0].nextSibling));				
 					Stat.Export();
-					es_addStyle(thepage, Style);
 				}
 				gZip.file(theFileName, handlePage(thepage,nLevel));
 			}
@@ -2857,7 +2867,6 @@
 					{
 						StatEntire.setNode(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling));
 						StatEntire.Export();
-						es_addStyle(gResponseDiv, Style);
 					}
                     gZip.file(gCurrentReport.value + "/statistics.html", handlePage(gResponseDiv));
                     GetItemPage();
@@ -2897,10 +2906,7 @@
                     }
                     handleIndexPage();
                     infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + "生成Zip文件";
-                    var head = document.getElementsByTagName('head')[0].cloneNode(true);
-
-
-                    var indexStr = handlePage(head) + gIndexDiv.innerHTML;
+                    var indexStr = '<html>\n' + headDiv.outerHTML + '\n<body>\n' + gIndexDiv.innerHTML + '\n</body>\n</html>';
                     gZip.file("index.html", indexStr);
                     var blob = gZip.generate({
                         type: "blob"
@@ -2942,62 +2948,246 @@
     }
 
     function handlePage(page,nLevel) {
-        if (gTitle == null)
-            gTitle = "我的战报";
-        page.getElementsByTagName('title')[0].innerHTML = gTitle;
 
-        var h2 = page.getElementsByTagName("h2")[0];
+		var thepage = page.getElementsByTagName("form")[0];
+        var h2 = thepage.getElementsByTagName("h2")[0];
         if (h2) {
             h2.innerHTML = replaceDate(h2.innerHTML);
         }
-        removePageDiv(page);
-        replaceURL(page, "link", "href");
-        replaceURL(page, "script", "src");
-        replaceURL(page, "img", "src");
-        replaceURL(page, "a", "href");
-        replaceButton(page);
+		
+		removePageInput(thepage);
+        replaceURL(thepage, "link", "href");
+        replaceURL(thepage, "script", "src");
+        replaceURL(thepage, "img", "src");
+        replaceURL(thepage, "a", "href", "#");
+        replaceButton(thepage);
 		if(nLevel)
-			replaceLevelPage(page,nLevel);
-        return replaceOther(page.outerHTML);
+			replaceLevelPage(thepage,nLevel);
+        return '<html>\n' + headDiv.outerHTML + '\n<body>\n' + replaceOther(thepage.outerHTML) + '\n</body>\n</html>';
+    }
+	
+	function handleHead(head) {
+        if (gTitle == null)
+            gTitle = "我的战报";
+        head.getElementsByTagName('title')[0].innerHTML = gTitle;
+
+        replaceURL(head, "link", "href");
+		
+		var bodyScript = document.getElementsByTagName('body')[0].cloneNode(true).getElementsByTagName("script");
+		for(var i=0;i<bodyScript.length;i++)
+			head.appendChild(bodyScript[i]);
+		var scripts = head.getElementsByTagName("script");
+		for(var i=scripts.length-1;i>=0;i--)
+		{
+			script = scripts[i];
+			handleScript(script);
+		}
+		replaceURL(head, "script", "src");
+		
+		var metas = head.getElementsByTagName("meta");
+		for(var i = metas.length-1;i>=0; i--)
+		{
+			var meta = metas[i];
+			if(!meta.httpEquiv)
+				meta.parentNode.removeChild(meta);
+		}
+		if(includeData)
+			es_addStyle(head,Style);
+		head.innerHTML = head.innerHTML + "\n";		
+        return head;
     }
 
-    function removePageDiv(page) {
-        var divs = page.getElementsByTagName("div");
-        for (var i = 0; i < divs.length; i++) {
-            var theDiv = divs[i];
-            if (theDiv.getAttribute("class") == "gadget popup") {
-                page.removeChild(theDiv);
-                break;
-            }
-        }
-        divs = page.getElementsByTagName("div");
-        for (var i = 0; i < divs.length; i++) {
-            var theDiv = divs[i];
-            if (theDiv.id == "ajax_wait") {
-                page.removeChild(theDiv);
+	function handleScript(script)
+	{
+		var patten = /wod_standard.js|wodtooltip.js/;
+		var scriptPatten = /(wodToolTipInit\(.*\);)\s*(wodInitialize\([^;]*\);)/;
+		if(script.src)
+		{
+			if(!patten.test(script.src))
+				script.parentNode.removeChild(script);
+		}
+		else if(script.firstChild)
+		{
+			var scriptStr = script.firstChild.data;
+			var result = scriptPatten.exec(scriptStr);
+			if(result[1] && result[2])
+				scriptStr = "window.onload = function(e){" + result[1] + result[2] + "}";
+			
+			scriptStr = scriptStr.replace(/wodInitialize\(''/g, "wodInitialize('" + location.host + "'").replace("'0'","'1'");
+			scriptStr += '\nfunction o(t,n){ \n var url="' + location.origin + '/wod/spiel/";\n';
+			scriptStr += 'if(t=="n"){url += "help/npc"}\n';
+			scriptStr += 'if(t=="s"){url += "hero/skill"}\n';
+			scriptStr += 'if(t=="i"){url += "hero/item"}\n';
+			scriptStr += 'return wo(url + ".php?name=" + n + "&IS_POPUP=1");}\n';
+			
+			if(includeData)
+			{
+				scriptStr +='function f(tableId,filterRowId) {\n';
+				scriptStr +='	var Table = document.getElementById(tableId);\n';
+				scriptStr +='	var filterRow = document.getElementById(filterRowId);\n';
+				scriptStr +='	var stringfilters = [];\n';
+				scriptStr +='	var numberfilters = [];\n';
+				scriptStr +='	var filterString = "";\n';
+				scriptStr +='	for(var i = 0; i< filterRow.cells.length; i++)\n';
+				scriptStr +='	{\n';
+				scriptStr +='		var cell = filterRow.cells[i];\n';
+				scriptStr +='		var stringfilter = document.getElementById(filterRow.id + "_combobox_" + i);\n';
+				scriptStr +='		var numberfilter = document.getElementById(filterRow.id + "_textbox_" + i);\n';
+				scriptStr +='		if(stringfilter)\n';
+				scriptStr +='			stringfilters.push(stringfilter.value);\n';
+				scriptStr +='		else\n';
+				scriptStr +='			stringfilters.push(null);\n';
+				scriptStr +='		if(numberfilter)\n';
+				scriptStr +='			numberfilters.push(numberfilter.value);\n';
+				scriptStr +='		else\n';
+				scriptStr +='			numberfilters.push(null);\n';
+				scriptStr +='	}\n';
+				scriptStr +='	var index = 0;\n';
+				scriptStr +='	for(var i = 2;i< Table.rows.length;i++)\n';
+				scriptStr +='	{\n';
+				scriptStr +='		var row = Table.rows[i];\n';
+				scriptStr +='		var rowIds = row.id.split(",");\n';
+				scriptStr +='		var show = true;\n';
+				scriptStr +='		for(var fi =0; fi<stringfilters.length;fi++)\n';
+				scriptStr +='		{\n';
+				scriptStr +='			var sfiler = stringfilters[fi];\n';
+				scriptStr +='			if(!sfiler)\n';
+				scriptStr +='				continue;\n';
+				scriptStr +='			if(sfiler != fi + "_all" && sfiler != rowIds[fi])\n';
+				scriptStr +='			{\n';
+				scriptStr +='				show = false;\n';
+				scriptStr +='				break;\n';
+				scriptStr +='			}\n';
+				scriptStr +='		}\n';
+				scriptStr +='		if(show)\n';
+				scriptStr +='		{\n';
+				scriptStr +='			var patten = /([\\(|\\[|>|<|=|]*)\\s*([\\d]*\\.?[\\d]*)\\s*-?\\s*([\\d]*\\.?[\\d]*)\\s*([\\)|\\]|\\s]?)/;\n';
+				scriptStr +='			var numberPatten = /^\\s?([\\d]+\\.?[\\d]*)\\s?_?\\s?([\\d]*\\.?[\\d]*)\\s?$/;\n';
+				scriptStr +='			for(fi=0;fi<numberfilters.length;fi++)\n';
+				scriptStr +='			{\n';
+				scriptStr +='				var pairTable = row.cells[fi].firstChild;\n';
+				scriptStr +='				var numberString = row.cells[fi].textContent;\n';
+				scriptStr +='				if(pairTable && pairTable.nodeName == "TABLE")\n';
+				scriptStr +='				{\n';
+				scriptStr +='					numberString = pairTable.id;\n';
+				scriptStr +='				}\n';
+				scriptStr +='				if(!numberPatten.test(numberString))\n';
+				scriptStr +='					continue;\n';
+				scriptStr +='				var numberres = numberPatten.exec(numberString);\n';
+				scriptStr +='				var numners = [];\n';
+				scriptStr +='				if(numberres[1])\n';
+				scriptStr +='					numners.push(numberres[1]);\n';
+				scriptStr +='				if(numberres[2])\n';
+				scriptStr +='					numners.push(numberres[2]);\n';
+				scriptStr +='				var nfilter = numberfilters[fi];\n';
+				scriptStr +='				\n';
+				scriptStr +='				if(!nfilter)\n';
+				scriptStr +='					continue;\n';
+				scriptStr +='				else \n';
+				scriptStr +='				{\n';
+				scriptStr +='					var nfilters = nfilter.split(/\\s*[,|，]\\s*/);\n';
+				scriptStr +='					for(ni = 0; ni < numners.length; ni++)\n';
+				scriptStr +='					{\n';
+				scriptStr +='						var theFilter = nfilters[ni];\n';
+				scriptStr +='						var testString = "";\n';
+				scriptStr +='						if(theFilter && patten.test(theFilter))\n';
+				scriptStr +='						{\n';
+				scriptStr +='							var	op = "==";\n';
+				scriptStr +='							var res = patten.exec(theFilter);\n';
+				scriptStr +='							if(res[1])\n';
+				scriptStr +='							{\n';
+				scriptStr +='								op = res[1];\n';
+				scriptStr +='								if(res[3])\n';
+				scriptStr +='								if( op == "[") op = ">=";\n';
+				scriptStr +='								if( op == "(") op = ">";\n';
+				scriptStr +='								if( op == "=") op = "==";\n';
+				scriptStr +='							}\n';
+				scriptStr +='							else\n';
+				scriptStr +='							{\n';
+				scriptStr +='								if(res[3])\n';
+				scriptStr +='									op = ">=";\n';
+				scriptStr +='							}\n';
+				scriptStr +='							testString = numners[ni] + op + res[2];\n';
+				scriptStr +='							if(res[3])\n';
+				scriptStr +='							{\n';
+				scriptStr +='								op = "<=";\n';
+				scriptStr +='								if(res[4])\n';
+				scriptStr +='								{\n';
+				scriptStr +='									op = res[4]\n';
+				scriptStr +='									if( op == "]") op = "<=";\n';
+				scriptStr +='									if( op == ")") op = "<";\n';
+				scriptStr +='								}\n';
+				scriptStr +='								testString += " && " + numners[ni] + op + res[3];\n';
+				scriptStr +='							}\n';
+				scriptStr +='							show = eval(testString);\n';
+				scriptStr +='							if(!show)\n';
+				scriptStr +='								break;\n';
+				scriptStr +='						}\n';
+				scriptStr +='					}\n';
+				scriptStr +='				}\n';
+				scriptStr +='				if(!show)\n';
+				scriptStr +='					break;\n';
+				scriptStr +='			}\n';
+				scriptStr +='		}\n';
+				scriptStr +='		row.style.display = show? "":"none";\n';
+				scriptStr +='		if(show)\n';
+				scriptStr +='		{\n';
+				scriptStr +='			row.className = "row" + index % 2;\n';
+				scriptStr +='			index++;\n';
+				scriptStr +='		}\n';
+				scriptStr +='		\n';
+				scriptStr +='	}\n';
+				scriptStr +='}\n';
+			}
+			script.firstChild.data = scriptStr;										
+		}
+
+	}
+    function removePageInput(page) {
+        var inputs = page.getElementsByTagName("input");
+        for (var i = inputs.length-1; i >=0;i--) {
+            var theInput = inputs[i];
+            if (theInput.type == "hidden") {
+                theInput.parentNode.removeChild(theInput);
                 break;
             }
         }
         return page
     }
 
-    function replaceURL(page, tag, attr) {
+    function replaceURL(page, tag, attr, value) {
         var test_pattern = /^\//;
-        var test1_pattern = /^#/
+        var test1_pattern = /^#/;
+		var onclick_pattern = /([^\/]*)\.php\?name=([^&]*)/;
         var allLink = page.getElementsByTagName(tag);
+		var path = location.origin + location.pathname;
+		var m = path.match(/(.*)[\/\\]([^\/\\]+)\.\w+$/);
+
         for (var i = 0; i < allLink.length; i++) {
             var link = allLink[i];
             if (link.hasAttribute(attr)) {
                 var uri = link.getAttribute(attr);
-                if (!rValue.pattern_http.test(uri)) {
-                    if (test_pattern.test(uri)) {
-                        link.setAttribute(attr, location.origin + uri)
-                    } else if (!test1_pattern.test(uri)) {
-                        var path = location.origin + location.pathname;
-                        var m = path.match(/(.*)[\/\\]([^\/\\]+)\.\w+$/);
-                        link.setAttribute(attr, m[1] + "/" + uri)
-                    }
-                }
+				if(value)
+				{
+					if (!test1_pattern.test(uri))
+						link.setAttribute(attr, value);
+					if(link.hasAttribute('onclick'))
+					{
+						var result = onclick_pattern.exec(link.getAttribute('onclick'));
+						if(result && result[1] && result[2])
+							link.setAttribute('onclick',"return o('" + result[1].substr(0,1) + "','" + result[2] + "');");
+					}
+				}
+				else
+				{
+					if (!rValue.pattern_http.test(uri)) {
+						if (test_pattern.test(uri)) {
+							link.setAttribute(attr, location.origin + uri);
+						} else if (!test1_pattern.test(uri)) {
+							link.setAttribute(attr, m[1] + "/" + uri);
+						}
+					}
+				}
             }
         }
     }
@@ -3108,6 +3298,8 @@
     var gIndexDiv;
     var gIsWorking = false;
 	var includeData = false;
+	var headDiv;
+	var world = "";
     var rContents = {
         OrigText_H1_DungeonLog: ["Battle Report",
             "战报"
@@ -3230,6 +3422,16 @@
                 break;
             }
         }
+		var allInput = document.getElementsByTagName("input");
+		for(var i=0;i<allInput.length;i++)
+		{
+			var input = allInput[i];
+			if(input.name && input.name == "wod_post_world")
+			{
+				world = input.value;
+				break;
+			}
+		}
     }
 
     try {
