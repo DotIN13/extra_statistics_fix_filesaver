@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.01
+// @version			2.02
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -3416,10 +3416,112 @@
 			}
 		}
     }
+////////////////////////////////////////////////////////////////////////////////////////////////
 
+	function test(o)
+	{
+		alert('test');
+	}
+	function filterMain() {
+		function Factoryfilter(o) {
+            return function() {
+                filterReport(o);
+            };
+		}
+		
+		var tables = document.getElementsByTagName("table");
+		for(var i= 0; i<tables.length; i++)
+		{
+			var table = tables[i];
+			if(table.className == "rep_status_table")
+			{
+				for(var j=0;j<table.rows.length;j++)
+				{
+					var row = table.rows[j];
+					for(var k=0;k<row.cells.length;k++)
+					{
+						var cell = row.cells[k];
+						if(cell.className == "hero")
+						{
+							var newCheckbox = document.createElement("input");
+							newCheckbox.setAttribute("type", "checkbox");
+							newCheckbox.setAttribute("class", "filter");
+							newCheckbox.value = cell.firstChild.textContent;
+							cell.insertBefore(newCheckbox, cell.firstChild);
+							//newCheckbox.setAttribute("onclick", "test(this);");
+							newCheckbox.addEventListener("click", Factoryfilter(newCheckbox), false);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	filterReport = function(o)
+	{
+		var checkboxlist = document.getElementsByTagName("input");
+		var selectedheros = [];
+		var classNamepattern = /^[rep_monster|rep_hero|rep_myhero]/
+		for(var i=0;i<checkboxlist.length;i++)
+		{
+			var checkbox = checkboxlist[i];
+			if(checkbox.getAttribute("type") == "checkbox" && checkbox.getAttribute("class") == "filter")
+			{				
+				if(checkbox.value == o.value)
+					checkbox.checked = o.checked;
+				if(checkbox.checked && selectedheros.indexOf(checkbox.value) <= -1)
+					selectedheros.push(checkbox.value);
+			}
+					
+		}
+		var tables = document.getElementsByTagName("table");
+		for(var i= 0; i<tables.length; i++)
+		{
+			var table = tables[i];
+			if(table.className != "rep_status_table")
+			{
+				var istheTable = false;
+				for(var j=0;j<table.rows.length;j++)
+				{
+					var row = table.rows[j];
+					var show = false;
+					if(row.cells.length <= 0 || row.cells[0].colSpan > 1)
+						continue;
+					if(istheTable || row.cells[0].className == "rep_initiative")
+					{
+						istheTable = true;
+						for(var k=0;k<row.cells.length;k++)
+						{
+							var cell = row.cells[k];
+							var links = cell.getElementsByTagName("a");
+							for(var index =0;index < links.length;index++)
+							{
+								var link = links[index];
+								if(classNamepattern.test(link.className))
+								{
+									var name = link.textContent;
+									if(selectedheros.length <= 0 || selectedheros.indexOf(name) > -1)
+									{
+										show = true;
+										break;
+									}
+								}
+							}
+							if(show)
+								break;
+						}
+						row.style.display = show?'':'none';
+					}
+				}
+			}
+		}
+	}
+	
     try {
         Main();
         ReprotMain();
+		filterMain();
     } catch (e) {
         alert("Main(): " + e);
     }
