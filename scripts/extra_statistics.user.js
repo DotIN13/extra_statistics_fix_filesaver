@@ -72,7 +72,7 @@
     function CompareString(a, b) {
         a = a || "";
         b = b || "";
-        return a.toLowerCase().localeCompare(b.toLowerCase());
+        return a.toLowerCase().localeCompare(b.toLowerCase(),"zh-CN-u-co-pinyin");
     }
 
 
@@ -438,6 +438,7 @@
         this.setNode = function(newNode) {
             var NewSection = document.createElement("div");
             NewSection.id = "stat_all";
+			NewSection.className = "stat_all";
             if (newNode.parentNode)
                 this._Node = newNode.parentNode.insertBefore(NewSection, newNode);
             else {
@@ -567,17 +568,24 @@
     };
 
     CTable.prototype.CreateHTML = function() {
-        var exportString = ' onclick="if(this.parentNode.nextSibling.style.display == ' + "'none' ){this.parentNode.nextSibling.style.display='';} else {this.parentNode.nextSibling.style.display='none'" + '};"';
-        if (!this._isExport)
-            exportString = "";
+        //var exportString = ' onclick="if(this.parentNode.nextSibling.style.display == ' + "'none' ){this.parentNode.nextSibling.style.display='';} else {this.parentNode.nextSibling.style.display='none'" + '};"';
 		var tableid = "table_" + this._Id
+        exportString = ' onclick="ct('+ "'" + tableid + "');" +'"';
+		if (!this._isExport)
+            exportString = "";
         this._HTML = '<div id="' + this._Id + '">' +
             '<div class="stat_header"><span class="stat_title clickable"' + exportString + '>' + this._Title + '</span></div>' +
             '<table class="content_table" id="' + tableid + '" ' + (this._bShow ? '' : 'hide="hide"') + '>' +
-            '<tr class="content_table_header">';
+			'<tr class="content_table_header">';
 
         for (var i = 0; i < this._nColumns; ++i)
-            this._HTML += '<th class="content_table">' + this._HeadCellContents[i] + '</th>';
+		{
+            exportString = ' onclick="co('+ "'" + tableid + "'," + i +",0);" +'"';
+			if (!this._isExport)
+				exportString = "";
+			var headerText = '<span id="' + this._Id + "_col" + i + '" class="clickable" ' + exportString + '>' + this._HeadCellContents[i] + '<span><span';
+			this._HTML += '<th class="content_table stat_order" id="th_' + this._Id + i + '" order="1" >' + headerText + '</th>';
+		}
         this._HTML += '</tr>';
 		if(useFilter)
 		{
@@ -593,7 +601,7 @@
 						var comboxboxid = this._filterId + "_combobox_" + i ;
 						this._HTML += '<select id="' + comboxboxid + '"';
 						if(this._isExport)
-							this._HTML += ' onchange="f(' +"'" + tableid + "','" + this._filterId + "'" + ');"';
+							this._HTML += ' onchange="cf(' +"'" + tableid + "','" + this._filterId + "'" + ');"';
 						this._HTML += '>';
 						this._HTML += '<option value="' + i + '_' + 'all" >' + Local.Text_Table_AllData + '</option>';
 						for(var j=0;j<filter.length;j++)
@@ -603,18 +611,20 @@
 						this._HTML += '</select>';
 					}
 					else
+					{
 						this._HTML += '<input type="text" id="' + this._filterId + "_textbox_" + i + '" size="8">';
+					}
 				}
 				this._HTML += '</td>';
 			}
 			this._HTML += '<td><input type="button" class="button" value="查询" id="' + this._filterId + "_button" + '"';
 			if(this._isExport)
-				this._HTML += ' onclick="f(' +"'" + tableid + "','" + this._filterId + "'" +  ');"';
+				this._HTML += ' onclick="cf(' +"'" + tableid + "','" + this._filterId + "'" +  ');"';
 			this._HTML += '></td></tr>';
 		}
 		
         for (var i = 0; i < this._BodyCellContents.length; ++i) {
-            this._HTML += '<tr class="row' + i % 2 
+            this._HTML += '<tr class="row' + i % 2 + '" oriorder="' + i + '"';
 			var rowStr = "";
 			var rowId = [];
             for (var j = 0; j < this._nColumns; ++j) {
@@ -660,6 +670,11 @@
                 CTable.OnChangeFilter(tableId,rowId);
             };
 		}
+        function FactorySort(tableId,colId,numberId) {
+            return function() {
+                CTable.OnChangeOrder(tableId,colId,numberId);
+            };
+		}
 
         Title.addEventListener("click", Factory(tableId), false);
 		
@@ -679,6 +694,12 @@
 					comboboxfilter.addEventListener("change", FactoryFilter(tableId,filterRowId), false);
 			}
 		}
+		var ths = node.getElementsByTagName("th");
+		for(var i=0; i< ths.length;i++)
+		{
+			var order = ths[i].getAttribute("order");
+			ths[i].addEventListener("click", FactorySort(tableId,i,0), false);			
+		}
 	};
 
     CTable.OnClickTitle = function(Id) {
@@ -686,17 +707,40 @@
             var Table = document.getElementById(Id);
             if (Table.hasAttribute("hide")) {
                 Table.removeAttribute("hide");
-                GM_setValue(Id, true);
+				if(this.GM_getValue)
+					GM_setValue(Id, true);
             } else {
                 Table.setAttribute("hide", "hide");
-                GM_setValue(Id, false);
+				if(this.GM_getValue)
+					GM_setValue(Id, false);
             }
         } catch (e) {
             alert("CTable.OnClickTitle(): " + e);
         }
     };
 	
-    CTable.OnChangeFilter = function(tableId,filterRowId) {
+	CTable.GetNumber = function(cell) {
+		var numberPatten = /^\s?([\d]+\.?[\d]*)\s?_?\s?([\d]*\.?[\d]*)\s?$/;
+		var pairTable = cell.firstChild;
+		var numberString = cell.textContent;
+		if(pairTable && pairTable.nodeName == "TABLE")
+		{
+			numberString = pairTable.id;
+		}
+		if(!numberPatten.test(numberString))
+			null;
+		else
+		{
+			var numberres = numberPatten.exec(numberString);
+			var numbers = [];
+			if(numberres[1])
+				numbers.push(numberres[1]);
+			if(numberres[2])
+				numbers.push(numberres[2]);
+			return numbers;
+		}
+	}
+	CTable.OnChangeFilter = function(tableId,filterRowId) {
         try {
             var Table = document.getElementById(tableId);
 			var filterRow = document.getElementById(filterRowId);
@@ -718,6 +762,7 @@
 					numberfilters.push(null);
 			}
 			var index = 0;
+			var patten = /([\(|\[|>|<|=|]*)\s*([\d]*\.?[\d]*)\s*-?\s*([\d]*\.?[\d]*)\s*([\)|\]|\s]?)/;
 			for(var i = 2;i< Table.rows.length;i++)
 			{
 				var row = Table.rows[i];
@@ -736,32 +781,17 @@
 				}
 				if(show)
 				{
-					var patten = /([\(|\[|>|<|=|]*)\s*([\d]*\.?[\d]*)\s*-?\s*([\d]*\.?[\d]*)\s*([\)|\]|\s]?)/;
-					var numberPatten = /^\s?([\d]+\.?[\d]*)\s?_?\s?([\d]*\.?[\d]*)\s?$/;
 					for(fi=0;fi<numberfilters.length;fi++)
 					{
-						var pairTable = row.cells[fi].firstChild;
-						var numberString = row.cells[fi].textContent;
-						if(pairTable && pairTable.nodeName == "TABLE")
-						{
-							numberString = pairTable.id;
-						}
-						if(!numberPatten.test(numberString))
-							continue;
-						var numberres = numberPatten.exec(numberString);
-						var numners = [];
-						if(numberres[1])
-							numners.push(numberres[1]);
-						if(numberres[2])
-							numners.push(numberres[2]);
 						var nfilter = numberfilters[fi];
 						
 						if(!nfilter)
 							continue;
 						else 
 						{
+							var numbers = CTable.GetNumber(row.cells[fi])|[];
 							var nfilters = nfilter.split(/\s*[,|，]\s*/);
-							for(ni = 0; ni < numners.length; ni++)
+							for(ni = 0; ni < numbers.length; ni++)
 							{
 								var theFilter = nfilters[ni];
 								var testString = "";
@@ -782,7 +812,7 @@
 										if(res[3])
 											op = ">=";
 									}
-									testString = numners[ni] + op + res[2];
+									testString = numbers[ni] + op + res[2];
 									if(res[3])
 									{
 										op = "<=";
@@ -792,7 +822,7 @@
 											if( op == "]") op = "<=";
 											if( op == ")") op = "<";
 										}
-										testString += " && " + numners[ni] + op + res[3];
+										testString += " && " + numbers[ni] + op + res[3];
 									}
 									show = eval(testString);
 									if(!show)
@@ -816,6 +846,68 @@
             alert("CTable.OnChangeFilter(): " + e);
         }
     };
+
+    CTable.OnChangeOrder = function(tableId,columnIndex,numberIndex) {
+		var Table = document.getElementById(tableId);
+		var index = numberIndex;
+		var ths = Table.getElementsByTagName("th");
+		if(index == null)
+			index = 0;
+		var th = ths[columnIndex];
+		var order = th.getAttribute("order");
+		for(var i = 2;i< Table.rows.length-1;i++)
+		{
+			for(var j = i+1;j< Table.rows.length;j++)
+			{
+				var row_1 = Table.rows[i];
+				var row_2 = Table.rows[j];
+				var cell_1 = row_1.cells[columnIndex];
+				var cell_2 = row_2.cells[columnIndex];
+				
+				n1 = CTable.GetNumber(cell_1);
+				n2 = CTable.GetNumber(cell_2);
+				var change = false;
+				if(n1 && n2)
+				{
+					var number_1 = n1[index] * order;
+					var number_2 = n2[index] * order;
+					change = number_1 > number_2;
+				}
+				else
+				{
+					if(columnIndex == ths.length -1)
+					{
+						var n1 = Number(row_1.getAttribute("oriorder"));
+						var n2 = Number(row_2.getAttribute("oriorder"));
+						change = n1>n2;
+					}
+					else
+					{
+						var c1 = "";
+						var c2 = "";
+						if(columnIndex == 0)
+						{
+							c1 = cell_1.firstChild.className.replace("my","");
+							c2 = cell_2.firstChild.className.replace("my","");
+						}
+						var s1 = cell_1.textContent;
+						var s2 = cell_2.textContent;
+						var cc = CompareString(c1,c2);
+						if(cc < 0)
+							change = false;
+						else if(cc > 0)
+							change = true;
+						else if( CompareString(s1,s2) == order)
+							change = true;
+					}
+				}
+				if(change)
+					row_1.parentNode.insertBefore(row_2,row_1);
+			}
+			Table.rows[i].className = "row" + i % 2;
+		}
+		th.setAttribute("order",-1*order);
+	};
     ///////////////////////////////////////////////////////////////////////////////
     function CActiveInfo() {
         this.nIniRoll;
@@ -1436,12 +1528,12 @@
                 for (var i = 0; i < this._gValue.length; ++i) {
                     var nSumOneAtkValue = [0, 0];
                     for (var j = 0; j < this._gValue[i].length; ++j) {
-                        if (this._gValue[i][j].IsHPDamage()) {
+                        //if (this._gValue[i][j].IsHPDamage()) {
                             nTotalValue[0] += this._gValue[i][j].GetBasicDmg();
                             nTotalValue[1] += this._gValue[i][j].GetActualDmg();
                             nSumOneAtkValue[0] = nSumOneAtkValue[0] + this._gValue[i][j].GetBasicDmg();
                             nSumOneAtkValue[1] = nSumOneAtkValue[1] + this._gValue[i][j].GetActualDmg();
-                        }
+                        //}
                     }
                     gValueBasic.push(nSumOneAtkValue[0]);
                     gValueActual.push(nSumOneAtkValue[1]);
@@ -1479,10 +1571,10 @@
                 for (var i = 0; i < this._gValue.length; ++i) {
                     var nTotalValue = [0, 0];
                     for (var j = 0; j < this._gValue[i].length; ++j) {
-                        if (this._gValue[i][j].IsHPDamage()) {
+                        //if (this._gValue[i][j].IsHPDamage()) {
                             nTotalValue[0] += this._gValue[i][j].GetBasicDmg();
                             nTotalValue[1] += this._gValue[i][j].GetActualDmg();
-                        }
+                        //}
                     }
                     Str += nTotalValue[1] + "/" + nTotalValue[0];
                     if (i < this._gValue.length - 1)
@@ -1640,7 +1732,7 @@
 						var filter = value.toText();
 						if(filters[j].indexOf(filter) <= -1)
 							filters[j].push(filter);
-						gBodyCellContent.push(new CCellContent(value,1,j + "_" + true,filters[j].indexOf(filter)));
+						gBodyCellContent.push(new CCellContent(value,1,true,filters[j].indexOf(filter)));
 					}
                     for (var j = 0; j < this._gValueName.length; ++j)
                         gBodyCellContent.push(new CCellContent(this._gValueName[j].getValue(this._gInfo[i]),1,true,-1));
@@ -2340,8 +2432,8 @@
         ["使用", "召唤"]],
         OrigTextList_WaitActionType: [["is unable to do anything.", "looks around in boredom and waits."],
         ["不能执行任何动作.", "无聊的打量四周，等待着."]],
-        OrigTextList_NoneHPDamageType: [["mana damage"],
-        ["法力伤害"]],
+        OrigTextList_NoneHPDamageType: [["mana damage","mana"],
+        ["法力伤害","法力"]],
         Pattern_Ini: [/^Initiative ([\d]+)<br><span .*?>Action ([\d]+) of ([\d]+)<\/span>$/,
         /^先攻([\d]+)<br><span .*?>第([\d]+)步行动 \/ 共([\d]+)步<\/span>$/],
         Pattern_Active_Char: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?/,
@@ -2434,7 +2526,8 @@
         "全部"]
     };
 
-    var Style = "div.stat_header {margin:1em auto 0.5em auto;} " +
+    var Style = "div.stat_all {font-size:14px;} " +
+	     "div.stat_header {margin:1em auto 0.5em auto;} " +
         "span.stat_title {margin: auto 1em auto 0em; font-size:20px; font-weight:bold; color:#FFF;} span.clickable {cursor:pointer;} " +
         "table[hide] {display:none;} " +
         "table.pair_value {width:100%;} table.pair_value td {width:50%; min-width:3em; text-align:right; color:#F8A400;} table.pair_value td + td {color:#00CC00;} ";
@@ -3022,122 +3115,12 @@
 			
 			if(includeData)
 			{
-				scriptStr +='function f(tableId,filterRowId) {\n';
-				scriptStr +='	var Table = document.getElementById(tableId);\n';
-				scriptStr +='	var filterRow = document.getElementById(filterRowId);\n';
-				scriptStr +='	var stringfilters = [];\n';
-				scriptStr +='	var numberfilters = [];\n';
-				scriptStr +='	var filterString = "";\n';
-				scriptStr +='	for(var i = 0; i< filterRow.cells.length; i++)\n';
-				scriptStr +='	{\n';
-				scriptStr +='		var cell = filterRow.cells[i];\n';
-				scriptStr +='		var stringfilter = document.getElementById(filterRow.id + "_combobox_" + i);\n';
-				scriptStr +='		var numberfilter = document.getElementById(filterRow.id + "_textbox_" + i);\n';
-				scriptStr +='		if(stringfilter)\n';
-				scriptStr +='			stringfilters.push(stringfilter.value);\n';
-				scriptStr +='		else\n';
-				scriptStr +='			stringfilters.push(null);\n';
-				scriptStr +='		if(numberfilter)\n';
-				scriptStr +='			numberfilters.push(numberfilter.value);\n';
-				scriptStr +='		else\n';
-				scriptStr +='			numberfilters.push(null);\n';
-				scriptStr +='	}\n';
-				scriptStr +='	var index = 0;\n';
-				scriptStr +='	for(var i = 2;i< Table.rows.length;i++)\n';
-				scriptStr +='	{\n';
-				scriptStr +='		var row = Table.rows[i];\n';
-				scriptStr +='		var rowIds = row.id.split(",");\n';
-				scriptStr +='		var show = true;\n';
-				scriptStr +='		for(var fi =0; fi<stringfilters.length;fi++)\n';
-				scriptStr +='		{\n';
-				scriptStr +='			var sfiler = stringfilters[fi];\n';
-				scriptStr +='			if(!sfiler)\n';
-				scriptStr +='				continue;\n';
-				scriptStr +='			if(sfiler != fi + "_all" && sfiler != rowIds[fi])\n';
-				scriptStr +='			{\n';
-				scriptStr +='				show = false;\n';
-				scriptStr +='				break;\n';
-				scriptStr +='			}\n';
-				scriptStr +='		}\n';
-				scriptStr +='		if(show)\n';
-				scriptStr +='		{\n';
-				scriptStr +='			var patten = /([\\(|\\[|>|<|=|]*)\\s*([\\d]*\\.?[\\d]*)\\s*-?\\s*([\\d]*\\.?[\\d]*)\\s*([\\)|\\]|\\s]?)/;\n';
-				scriptStr +='			var numberPatten = /^\\s?([\\d]+\\.?[\\d]*)\\s?_?\\s?([\\d]*\\.?[\\d]*)\\s?$/;\n';
-				scriptStr +='			for(fi=0;fi<numberfilters.length;fi++)\n';
-				scriptStr +='			{\n';
-				scriptStr +='				var pairTable = row.cells[fi].firstChild;\n';
-				scriptStr +='				var numberString = row.cells[fi].textContent;\n';
-				scriptStr +='				if(pairTable && pairTable.nodeName == "TABLE")\n';
-				scriptStr +='				{\n';
-				scriptStr +='					numberString = pairTable.id;\n';
-				scriptStr +='				}\n';
-				scriptStr +='				if(!numberPatten.test(numberString))\n';
-				scriptStr +='					continue;\n';
-				scriptStr +='				var numberres = numberPatten.exec(numberString);\n';
-				scriptStr +='				var numners = [];\n';
-				scriptStr +='				if(numberres[1])\n';
-				scriptStr +='					numners.push(numberres[1]);\n';
-				scriptStr +='				if(numberres[2])\n';
-				scriptStr +='					numners.push(numberres[2]);\n';
-				scriptStr +='				var nfilter = numberfilters[fi];\n';
-				scriptStr +='				\n';
-				scriptStr +='				if(!nfilter)\n';
-				scriptStr +='					continue;\n';
-				scriptStr +='				else \n';
-				scriptStr +='				{\n';
-				scriptStr +='					var nfilters = nfilter.split(/\\s*[,|，]\\s*/);\n';
-				scriptStr +='					for(ni = 0; ni < numners.length; ni++)\n';
-				scriptStr +='					{\n';
-				scriptStr +='						var theFilter = nfilters[ni];\n';
-				scriptStr +='						var testString = "";\n';
-				scriptStr +='						if(theFilter && patten.test(theFilter))\n';
-				scriptStr +='						{\n';
-				scriptStr +='							var	op = "==";\n';
-				scriptStr +='							var res = patten.exec(theFilter);\n';
-				scriptStr +='							if(res[1])\n';
-				scriptStr +='							{\n';
-				scriptStr +='								op = res[1];\n';
-				scriptStr +='								if(res[3])\n';
-				scriptStr +='								if( op == "[") op = ">=";\n';
-				scriptStr +='								if( op == "(") op = ">";\n';
-				scriptStr +='								if( op == "=") op = "==";\n';
-				scriptStr +='							}\n';
-				scriptStr +='							else\n';
-				scriptStr +='							{\n';
-				scriptStr +='								if(res[3])\n';
-				scriptStr +='									op = ">=";\n';
-				scriptStr +='							}\n';
-				scriptStr +='							testString = numners[ni] + op + res[2];\n';
-				scriptStr +='							if(res[3])\n';
-				scriptStr +='							{\n';
-				scriptStr +='								op = "<=";\n';
-				scriptStr +='								if(res[4])\n';
-				scriptStr +='								{\n';
-				scriptStr +='									op = res[4]\n';
-				scriptStr +='									if( op == "]") op = "<=";\n';
-				scriptStr +='									if( op == ")") op = "<";\n';
-				scriptStr +='								}\n';
-				scriptStr +='								testString += " && " + numners[ni] + op + res[3];\n';
-				scriptStr +='							}\n';
-				scriptStr +='							show = eval(testString);\n';
-				scriptStr +='							if(!show)\n';
-				scriptStr +='								break;\n';
-				scriptStr +='						}\n';
-				scriptStr +='					}\n';
-				scriptStr +='				}\n';
-				scriptStr +='				if(!show)\n';
-				scriptStr +='					break;\n';
-				scriptStr +='			}\n';
-				scriptStr +='		}\n';
-				scriptStr +='		row.style.display = show? "":"none";\n';
-				scriptStr +='		if(show)\n';
-				scriptStr +='		{\n';
-				scriptStr +='			row.className = "row" + index % 2;\n';
-				scriptStr +='			index++;\n';
-				scriptStr +='		}\n';
-				scriptStr +='		\n';
-				scriptStr +='	}\n';
-				scriptStr +='}\n';
+				scriptStr +='var CTable=function(){};\n';
+				scriptStr +='CTable.GetNumber = ' + CTable.GetNumber.toString() + '\n';
+				scriptStr +='CompareString = ' + CompareString.toString() + '\n';
+				scriptStr +='ct = ' + CTable.OnClickTitle.toString() + '\n';
+				scriptStr +='cf = ' + CTable.OnChangeFilter.toString() + '\n';
+				scriptStr +='co = ' + CTable.OnChangeOrder.toString() + '\n';
 			}
 			script.firstChild.data = scriptStr;										
 		}
