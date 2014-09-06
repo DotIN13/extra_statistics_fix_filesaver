@@ -569,7 +569,7 @@
 
     CTable.prototype.CreateHTML = function() {
         //var exportString = ' onclick="if(this.parentNode.nextSibling.style.display == ' + "'none' ){this.parentNode.nextSibling.style.display='';} else {this.parentNode.nextSibling.style.display='none'" + '};"';
-		var tableid = "table_" + this._Id
+		var tableid = "table_" + this._Id;
         exportString = ' onclick="ct('+ "'" + tableid + "');" +'"';
 		if (!this._isExport)
             exportString = "";
@@ -641,7 +641,8 @@
 				rowId.push(j + "_" + this._BodyCellContents[i][j].filterId);
             }
 			this._HTML += '" id = "' + rowId.join(",") + '">' + rowStr + '</tr>';
-        }
+ 			this._HTML += '<tr style="display: none;" class="row' + i % 2 + '" id = "' + tableid + '_' + i + '"><td colspan="' + this._nColumns + '" /></tr>';
+       }
         this._HTML += '</table></div>';
 
         return this._HTML;
@@ -655,7 +656,7 @@
         var node = document.getElementById(this._Id);
         if (!node)
             return;
-		var tableId = "table_" + this._Id;
+		var tableid = "table_" + this._Id;
 		var filterRowId = "filter_" + this._Id;
         var Title = node.getElementsByTagName("span")[0];
 
@@ -665,18 +666,22 @@
             };
 		}
 
-        function FactoryFilter(tableId,rowId) {
+        function FactoryFilter(tableid,rowId) {
             return function() {
-                CTable.OnChangeFilter(tableId,rowId);
+                CTable.OnChangeFilter(tableid,rowId);
             };
 		}
-        function FactorySort(tableId,colId,numberId) {
+        function FactorySort(tableid,colId,numberId) {
             return function() {
-                CTable.OnChangeOrder(tableId,colId,numberId);
+                CTable.OnChangeOrder(tableid,colId,numberId);
             };
 		}
-
-        Title.addEventListener("click", Factory(tableId), false);
+        function FactoryShowDetail(rowId,activeRows) {
+            return function() {
+                CTable.OnShowDetail(rowId,activeRows);
+            };
+		}
+        Title.addEventListener("click", Factory(tableid), false);
 		
 		if(useFilter)
 		{
@@ -684,21 +689,38 @@
 			var buttonid = filterRowId + "_button";
 			var filterbutton = document.getElementById(buttonid);
 			if(filterbutton)
-				filterbutton.addEventListener("click", FactoryFilter(tableId,filterRowId), false);
+				filterbutton.addEventListener("click", FactoryFilter(tableid,filterRowId), false);
 			for(var i = 0; i< filterRow.cells.length; i++)
 			{
 				var cell = filterRow.cells[i];
 				var comboboxid = filterRowId + "_combobox_" + i;
 				var comboboxfilter = document.getElementById(comboboxid);
 				if(comboboxfilter)
-					comboboxfilter.addEventListener("change", FactoryFilter(tableId,filterRowId), false);
+					comboboxfilter.addEventListener("change", FactoryFilter(tableid,filterRowId), false);
 			}
 		}
 		var ths = node.getElementsByTagName("th");
 		for(var i=0; i< ths.length;i++)
 		{
 			var order = ths[i].getAttribute("order");
-			ths[i].addEventListener("click", FactorySort(tableId,i,0), false);			
+			ths[i].addEventListener("click", FactorySort(tableid,i,0), false);			
+		}
+		var tables = node.getElementsByTagName("table");
+		var table;
+		for(var i=0;i<tables.length;i++)
+		{
+			if(tables[i].id == tableid)
+			{
+				table = tables[i];
+				break;
+			}
+		}
+		for(var i=2; i<table.rows.length;i= i+2)
+		{
+			var button = table.rows[i].getElementsByTagName('input')[0];
+			var id = (i-2)/2;
+			debugger;
+			button.addEventListener("click", FactoryShowDetail(tableid + '_' + id,this._BodyCellContents[id][0].activeRows), false);			
 		}
 	};
 
@@ -728,7 +750,7 @@
 			numberString = pairTable.id;
 		}
 		if(!numberPatten.test(numberString))
-			null;
+			return null;
 		else
 		{
 			var numberres = numberPatten.exec(numberString);
@@ -908,7 +930,43 @@
 		}
 		th.setAttribute("order",-1*order);
 	};
-    ///////////////////////////////////////////////////////////////////////////////
+    
+	CTable.OnShowDetail = function(rowid,activeRows)
+	{
+		debugger;
+		var row = document.getElementById(rowid);
+		var cell = row.cells[0];
+		var button = row.previousSibling.getElementsByTagName('input')[0];
+		activeRows = activeRows||[];
+		if(cell && activeRows.length > 0)
+		{
+			if(cell.innerHTML === "")
+			{	
+				var str= "<table>";
+				for(var i = 0;i<activeRows.length;i++)
+				{
+					var theRow = document.getElementById(activeRows[i]);
+					str += theRow.outerHTML;			
+					if(i < activeRows.length - 1)
+						str += '<tr><td colspan="3"><hr/></td></tr>';
+				}
+				str += "</table>";
+				cell.innerHTML = str;
+			}			
+			if(row.style.display == '')
+			{
+				button.value = Local.Text_Button_Show;
+				row.style.display = 'none';
+			}
+			else
+			{
+				button.value = Local.Text_Button_Hide;
+				row.style.display = '';
+			}
+		}
+		
+	}
+	///////////////////////////////////////////////////////////////////////////////
     function CActiveInfo() {
         this.nIniRoll;
         this.nCurrAction;
@@ -947,6 +1005,10 @@
         this.nRoom = nRoom;
         this.nRound = nRound;
         this.nRow = nRow;
+		this.toString = function()
+		{
+			return this.nLevel + '_' + this.nRoom + '_' + this.nRound + '_' + this.nRow;
+		}
     }
 
 
@@ -954,8 +1016,13 @@
         this.Navi = Navi;
         this.Active = new CActiveInfo();
         this.gPassive = [];
+		this.ActiveRow = 'activeRow_' + this.Navi.toString();
     }
 
+	function CActiveValue(ActiveRow,Value) {
+		this.Value = Value;
+		this.ActiveRow = ActiveRow;
+	}
     ///////////////////////////////////////////////////////////////////////////////
     // Class: Key
     // Every key should have two function properties: compareTo() and toString(),
@@ -1375,7 +1442,7 @@
         }
     });
 
-
+	
     ///////////////////////////////////////////////////////////////////////////////
     // Class: Value list
     // Value list is a special key, it can contains any type of values, including keys
@@ -1384,6 +1451,8 @@
         extend: CKey,
         construct: function() {
             this._gValue = [];
+			this._nValue = [];
+			this._ActiveValue = [];
             this._nAvgValue; // unsure type
             this._nMaxValue; // unsure type
             this._nMinValue; // unsure type
@@ -1394,8 +1463,11 @@
                 return this._gValue.length;
             },
             Calculate: function() {},
-            push: function(Value) {
-                return this._gValue.push(Value);
+            push: function(ActiveRow,Value) {
+				this._nValue.push(Value);
+				this._ActiveValue.push(ActiveRow);
+                var activeValue = new CActiveValue(ActiveRow,Value);
+				return this._gValue.push(activeValue);
             },
             compareTo: function(that) {
                 return this._nAvgValue - that._nAvgValue;
@@ -1412,8 +1484,11 @@
             STDValueStr: function() {
                 return String(this._nSTDValue);
             },
+			ActiveValue: function() {
+                return this._ActiveValue;
+            },
             toString: function() {
-                return this._gValue.join(", ");
+				return this._nValue.join(", ");
             }
         }
     });
@@ -1427,12 +1502,13 @@
         methods: {
             Calculate: function() {
                 var nTotalValue = 0;
-                for (var i = 0; i < this._gValue.length; ++i)
-                    nTotalValue += Number(this._gValue[i]);
+				for (var i = 0; i < this._nValue.length; ++i)
+ 					nTotalValue += Number(this._nValue[i]);
+
                 this._nAvgValue = Number((nTotalValue / this._gValue.length).toFixed(2));
-                this._nMaxValue = getMax(this._gValue);
-                this._nMinValue = getMin(this._gValue);
-                this._nSTDValue = getSTD(this._gValue);
+                this._nMaxValue = getMax(this._nValue);
+                this._nMinValue = getMin(this._nValue);
+                this._nSTDValue = getSTD(this._nValue);
             }
         }
     });
@@ -1450,11 +1526,12 @@
 
                 var gValueZero = [];
                 var gValueFirst = [];
-                for (var i = 0; i < this._gValue.length; ++i) {
-                    gValueZero.push(this._gValue[i][0]);
-                    gValueFirst.push(this._gValue[i][1]);
-                    nTotalValue[0] += this._gValue[i][0];
-                    nTotalValue[1] += this._gValue[i][1];
+                for (var i = 0; i < this._nValue.length; ++i) {
+                    var theValue = this._nValue[i];
+					gValueZero.push(theValue[0]);
+                    gValueFirst.push(theValue[1]);
+                    nTotalValue[0] += theValue[0];
+                    nTotalValue[1] += theValue[1];
                 };
 
                 this._nAvgValue = new Array(2);
@@ -1490,10 +1567,11 @@
             },
             toString: function() {
                 var Str = "";
-                for (var i = 0; i < this._gValue.length; ++i) {
-                    Str += (this._gValue[i][0] != null) ? this._gValue[i][0] : 0;
+                for (var i = 0; i < this._nValue.length; ++i) {
+                    var theValue = this._nValue[i];
+					Str += (theValue[0] != null) ? theValue[0] : 0;
                     Str += "/";
-                    Str += (this._gValue[i][1] != null) ? this._gValue[i][1] : 0;
+                    Str += (theValue[1] != null) ? theValue[1] : 0;
                     if (i < this._gValue.length - 1)
                         Str += ", ";
                 }
@@ -1525,14 +1603,16 @@
                 var gValueBasic = [];
                 var gValueActual = [];
 
-                for (var i = 0; i < this._gValue.length; ++i) {
+                for (var i = 0; i < this._nValue.length; ++i) {
                     var nSumOneAtkValue = [0, 0];
-                    for (var j = 0; j < this._gValue[i].length; ++j) {
+					var theActiveValue = this._nValue[i];
+                    for (var j = 0; j < theActiveValue.length; ++j) {
                         //if (this._gValue[i][j].IsHPDamage()) {
-                            nTotalValue[0] += this._gValue[i][j].GetBasicDmg();
-                            nTotalValue[1] += this._gValue[i][j].GetActualDmg();
-                            nSumOneAtkValue[0] = nSumOneAtkValue[0] + this._gValue[i][j].GetBasicDmg();
-                            nSumOneAtkValue[1] = nSumOneAtkValue[1] + this._gValue[i][j].GetActualDmg();
+						var theValue = theActiveValue[j];
+						nTotalValue[0] += theValue.GetBasicDmg();
+						nTotalValue[1] += theValue.GetActualDmg();
+						nSumOneAtkValue[0] = nSumOneAtkValue[0] + theValue.GetBasicDmg();
+						nSumOneAtkValue[1] = nSumOneAtkValue[1] + theValue.GetActualDmg();
                         //}
                     }
                     gValueBasic.push(nSumOneAtkValue[0]);
@@ -1570,14 +1650,16 @@
                 var Str = "";
                 for (var i = 0; i < this._gValue.length; ++i) {
                     var nTotalValue = [0, 0];
-                    for (var j = 0; j < this._gValue[i].length; ++j) {
+					var theActiveValue = this._nValue[i];
+                    for (var j = 0; j < theActiveValue.length; ++j) {
                         //if (this._gValue[i][j].IsHPDamage()) {
-                            nTotalValue[0] += this._gValue[i][j].GetBasicDmg();
-                            nTotalValue[1] += this._gValue[i][j].GetActualDmg();
+							var theValue = theActiveValue[j];
+                            nTotalValue[0] += theValue.GetBasicDmg();
+                            nTotalValue[1] += theValue.GetActualDmg();
                         //}
                     }
                     Str += nTotalValue[1] + "/" + nTotalValue[0];
-                    if (i < this._gValue.length - 1)
+                    if (i < this._nValue.length - 1)
                         Str += ", ";
                 }
                 return Str;
@@ -1596,12 +1678,13 @@
 
     ///////////////////////////////////////////////////////////////////////////////
     // Class: Info list
-	function CCellContent(value,rowspan,show,filterId)
+	function CCellContent(value,rowspan,show,filterId,activeRows)
 	{
 		this.value = value;
 		this.rowspan = rowspan;
 		this.show = show;
 		this.filterId = filterId;
+		this.activeRows = activeRows||[];
 	}
 	
     function CKeyType(name, type) {
@@ -1621,7 +1704,8 @@
                 case Local.Text_Table_STDRoll:
                     return info.ValueList.STDValueStr();
                 case Local.Text_Table_RollList:
-                    return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show], ["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
+                    //return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show], ["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
+                    return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show]);
                 default:
                     return this.Name;
             }
@@ -1732,10 +1816,10 @@
 						var filter = value.toText();
 						if(filters[j].indexOf(filter) <= -1)
 							filters[j].push(filter);
-						gBodyCellContent.push(new CCellContent(value,1,true,filters[j].indexOf(filter)));
+						gBodyCellContent.push(new CCellContent(value,1,true,filters[j].indexOf(filter),this._gInfo[i].ValueList.ActiveValue()));
 					}
                     for (var j = 0; j < this._gValueName.length; ++j)
-                        gBodyCellContent.push(new CCellContent(this._gValueName[j].getValue(this._gInfo[i]),1,true,-1));
+                        gBodyCellContent.push(new CCellContent(this._gValueName[j].getValue(this._gInfo[i]),1,true,-1,this._gInfo[i].ValueList.ActiveValue()));
 
                     tablecontent.push(gBodyCellContent);					
                 }
@@ -1810,16 +1894,16 @@
             AddEvents: function() {
                 if (this._Table != null) this._Table.AddEvents();
             },
-            push: function(gKey, Value) {
-                for (var i = 0; i < this._gInfo.length; ++i) {
+            push: function(ActiveRow, gKey, Value) {
+ 				for (var i = 0; i < this._gInfo.length; ++i) {
                     if (this._CompareKeys(this._gInfo[i].gKey, gKey) === 0) {
-                        this._gInfo[i].ValueList.push(Value);
+                        this._gInfo[i].ValueList.push(ActiveRow,Value);
                         return this._gInfo.length;
                     }
                 }
 
                 var ValueList = new this._CValueList();
-                ValueList.push(Value);
+                ValueList.push(ActiveRow,Value);
                 return this._gInfo.push(new CInfoList._CInfo(gKey, ValueList));
             },
             sort: function(gSortKeyId) {
@@ -1887,7 +1971,7 @@
         methods: {
             SaveInfo: function(Info) {
                 if (Info.Active.nCurrAction === 1)
-                    this.push([Info.Active.Char], Info.Active.nIniRoll);
+                    this.push(Info.ActiveRow,[Info.Active.Char], Info.Active.nIniRoll);
             }
         }
     });
@@ -1903,7 +1987,7 @@
             SaveInfo: function(Info) {
                 if (Info.Active.ActionType.GetKind() === CActionType.ATTACK && Info.Active.gAttackRoll.length != 0) {
                     for (var i = 0; i < Info.Active.gAttackRoll.length; ++i) {
-                        this.push([Info.Active.Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem, Info.Active.gPosition._gKey[i]],
+                        this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem, Info.Active.gPosition._gKey[i]],
                             Info.Active.gAttackRoll[i]);
                     }
                 }
@@ -1923,7 +2007,7 @@
                 if (Info.Active.ActionType.GetKind() === CActionType.ATTACK) {
                     for (var i = 0; i < Info.gPassive.length; ++i) {
                         if (Info.gPassive[i].nDefenceRoll != null)
-                            this.push([Info.gPassive[i].Char, Info.Active.ActionType,
+                            this.push(Info.ActiveRow,[Info.gPassive[i].Char, Info.Active.ActionType,
        Info.gPassive[i].Skill, Info.gPassive[i].gItem], Info.gPassive[i].nDefenceRoll);
                     }
                 }
@@ -1946,7 +2030,7 @@
                             //var damage = [];
                             //damage.push(Info.gPassive[i].gDamage);
                             for (var index = 0; index < Info.gPassive[i].gDamage.length; index++) {
-                                this.push([Info.Active.Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem, Info.gPassive[i].gDamage[index].GetDamageType()], [Info.gPassive[i].gDamage[index]]);
+                                this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem, Info.gPassive[i].gDamage[index].GetDamageType()], [Info.gPassive[i].gDamage[index]]);
                             }
                         }
 
@@ -1968,10 +2052,10 @@
                 if (Info.Active.ActionType.GetKind() === CActionType.HEAL) {
                     for (var i = 0; i < Info.gPassive.length; ++i) {
                         if (Info.gPassive[i].nHealedHP != null)
-							this.push([Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
+							this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
 
 						if (Info.gPassive[i].nHealedMP != null)
-                            this.push([Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
+                            this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
                     }
                 }
             }
@@ -1990,10 +2074,10 @@
                 if (Info.Active.ActionType.GetKind() === CActionType.HEAL) {
                     for (var i = 0; i < Info.gPassive.length; ++i) {
                         if (Info.gPassive[i].nHealedHP != null)
-                            this.push([Info.gPassive[i].Char,new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
+                            this.push(Info.ActiveRow,[Info.gPassive[i].Char,new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
 
 						if(Info.gPassive[i].nHealedMP != null)
-                            this.push([Info.gPassive[i].Char,new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
+                            this.push(Info.ActiveRow,[Info.gPassive[i].Char,new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
                     }
                 }
             }
@@ -2011,7 +2095,7 @@
                 if (Info.Active.ActionType.GetKind() === CActionType.ATTACK) {
                     for (var i = 0; i < Info.gPassive.length; ++i) {
                         if (Info.gPassive[i].nItemDamage != null)
-                            this.push([Info.gPassive[i].Char, Info.gPassive[i].DamagedItem],
+                            this.push(Info.ActiveRow,[Info.gPassive[i].Char, Info.gPassive[i].DamagedItem],
                                 Info.gPassive[i].nItemDamage);
                     }
                 }
@@ -2020,31 +2104,20 @@
     });
 
 
-    // FUNCTIONS //////////////////////////////////////////////////////////////////
-    function getActions(page) {
-        var allTable = page.getElementsByTagName("table");
-        for (var i = 0; i < allTable.length; i++) {
-
-        }
-
-    }
-
+    // FUNCTIONS //////////////////////////////////////////////////////////////////	
     function CountStat(page, bLastSubPage, alsoSaveEntire) {
         // Read the last round only when reading the last sub page
         if (!bLastSubPage) RemoveLastRound(page);
 
         var Navi = new CNavi(0, 0, 0, 0);
-
-
         var allRows = page.getElementsByTagName("tr");
         for (var i = 0; i < allRows.length; ++i) {
             var Info = new CActionInfo(Navi);
-
-
             var IniColumn = first_child(allRows[i]);
             if (!GetIniInfo(IniColumn, Info))
                 continue;
-            ++Info.Navi.nRow;
+            Navi.nRow++;
+			allRows[i].setAttribute('id',Info.ActiveRow);
 
             var ActiveColumn = node_after(IniColumn);
             GetActiveInfo(ActiveColumn, Info);
@@ -2460,6 +2533,8 @@
         "全城额外统计"],
         Text_Button_Show: ["Show",
         "显示"],
+        Text_Button_Hide: ["Hide",
+        "隐藏"],
         Text_Button_Default: ["Default",
         "默认"],
         TextList_AttackType: [["melee", "ranged", "spell", "social", "ambush", "trap", "nature", "disease", "detonate", "disarm trap", "magic projectile", "curse", "scare"],
