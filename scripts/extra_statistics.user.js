@@ -719,7 +719,6 @@
 		{
 			var button = table.rows[i].getElementsByTagName('input')[0];
 			var id = (i-2)/2;
-			debugger;
 			button.addEventListener("click", FactoryShowDetail(tableid + '_' + id,this._BodyCellContents[id][0].activeRows), false);			
 		}
 	};
@@ -745,13 +744,14 @@
 		var numberPatten = /^\s?([\d]+\.?[\d]*)\s?_?\s?([\d]*\.?[\d]*)\s?$/;
 		var pairTable = cell.firstChild;
 		var numberString = cell.textContent;
-		var numbers = [];
+		var numbers;
 		if(pairTable && pairTable.nodeName == "TABLE")
 		{
 			numberString = pairTable.id;
 		}
 		if(numberPatten.test(numberString))
 		{
+			numbers = [];
 			var numberres = numberPatten.exec(numberString);
 			if(numberres[1])
 				numbers.push(numberres[1]);
@@ -761,7 +761,6 @@
 		return numbers;
 	}
 	CTable.OnChangeFilter = function(tableId,filterRowId) {
-        debugger;
 		try {
             var Table = document.getElementById(tableId);
 			var filterRow = document.getElementById(filterRowId);
@@ -913,7 +912,7 @@
 						change = true;
 					else 
 					{
-						if(n1 && n2)
+						if(n1 && n2 && n1.length > 0 && n2.length > 0)
 						{
 							var number_1 = n1[index] * order;
 							var number_2 = n2[index] * order;
@@ -938,7 +937,6 @@
     
 	CTable.OnShowDetail = function(rowid,activeRows)
 	{
-		debugger;
 		var row = document.getElementById(rowid);
 		var cell = row.cells[0];
 		var button = row.previousSibling.getElementsByTagName('input')[0];
@@ -948,8 +946,11 @@
 			if(cell.innerHTML === "")
 			{	
 				var str= '<table width="100%"><tdoby>';
-				str += '<tr><td colspan="3" align="center">' + button.getAttribute('data') + '</td></tr>';
-				str += '<tr><td colspan="3"><hr/></td></tr>'
+				if(button.getAttribute('data'))
+				{
+					str += '<tr><td colspan="3" align="center">' + button.getAttribute('data') + '</td></tr>';
+					str += '<tr><td colspan="3"><hr/></td></tr>';
+				}
 				for(var i = 0;i<activeRows.length;i++)
 				{
 					var theRow = document.getElementById(activeRows[i]);
@@ -1349,6 +1350,29 @@
             }
         }
     });
+	
+	// buff type
+    var CBuffType = DefineClass({
+        extend: CKey,
+        construct: function(BuffText) {
+            this._sType;
+
+            if (BuffText != null) {
+                this._sType = BuffText;
+            }
+        },
+        methods: {
+            GetType: function() {
+                return this._sType;
+            },
+            compareTo: function(that) {
+                return CompareString(this._sType, that._sType);
+            },
+            toString: function() {
+                return this._sType;
+            }
+        }
+    });
 
     // Damage Type
     var CDamageType = DefineClass({
@@ -1501,7 +1525,24 @@
         }
     });
 
-
+    var CVLString = DefineClass({
+        extend: CValueList,
+        construct: function() {
+            this.superclass();
+        },
+        methods: {
+            Calculate: function() {
+                this._nAvgValue = "";
+                this._nMaxValue = "";
+                this._nMinValue = "";
+                this._nSTDValue = "";
+            },
+			compareTo: function(that) {
+                return 0;
+            }
+        }
+    });
+	
     var CVLNumber = DefineClass({
         extend: CValueList,
         construct: function() {
@@ -1714,6 +1755,9 @@
                 case Local.Text_Table_RollList:
                     //return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show], ["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
                     return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show],["data",info.ValueList.toString()]);
+                case Local.Text_Table_DetailList:
+                    //return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show], ["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
+                    return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show],["data",""]);
                 default:
                     return this.Name;
             }
@@ -1744,6 +1788,10 @@
         return new CKeyType(Local.Text_Table_RollList, "button");
     }
 
+    CKeyType.DetailList = function() {
+        return new CKeyType(Local.Text_Table_DetailList, "button");
+    }
+
     CKeyType.Char = function() {
         return new CKeyType(Local.Text_Table_Char, "string");
     }
@@ -1766,6 +1814,10 @@
 
     CKeyType.HealType = function() {
         return new CKeyType(Local.Text_Table_HealType, "string");
+    }
+
+    CKeyType.BuffType = function() {
+        return new CKeyType(Local.Text_Table_BuffType, "string");
     }
 	
     CKeyType.DamageType = function() {
@@ -2070,27 +2122,6 @@
         }
     });
 
-    var CILBuff = DefineClass({
-        extend: CInfoList,
-        construct: function(CValueList) {
-            this.superclass(CValueList, Local.Text_Table_Buff, "stat_buff", [CKeyType.Char(), CKeyType.Skill(), CKeyType.Item(), CKeyType.HealType()],
-                CKeyType.ValueName());
-        },
-        methods: {
-            SaveInfo: function(Info) {
-                if (Info.Active.ActionType.GetKind() === CActionType.HEAL) {
-                    for (var i = 0; i < Info.gPassive.length; ++i) {
-                        if (Info.gPassive[i].nHealedHP != null)
-							this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
-
-						if (Info.gPassive[i].nHealedMP != null)
-                            this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
-                    }
-                }
-            }
-        }
-    });
-	
     var CILHealed = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
@@ -2107,6 +2138,36 @@
 						if(Info.gPassive[i].nHealedMP != null)
                             this.push(Info.ActiveRow,[Info.gPassive[i].Char,new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
                     }
+                }
+            }
+        }
+    });
+
+    var CILBuff = DefineClass({
+        extend: CInfoList,
+        construct: function(CValueList) {
+            this.superclass(CValueList, Local.Text_Table_Buff, "stat_buff", [CKeyType.Char(), CKeyType.Skill(), CKeyType.Item(),CKeyType.BuffType()],
+                [CKeyType.Times(),CKeyType.DetailList()]);
+        },
+        methods: {
+            SaveInfo: function(Info) {
+                if (Info.Active.ActionType.GetKind() === CActionType.BUFF) {
+					this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.Skill, Info.Active.gItem,new CBuffType(Info.Active.nIniRoll == null?'回合前':'回合中') ], [0]);
+                }
+            }
+        }
+    });
+	var CILBuffed = DefineClass({
+        extend: CInfoList,
+        construct: function(CValueList) {
+            this.superclass(CValueList, Local.Text_Table_Buffed, "stat_buffed", [CKeyType.Char(), CKeyType.Skill(), CKeyType.Item(),CKeyType.BuffType()],
+                [CKeyType.Times(),CKeyType.DetailList()]);
+        },
+        methods: {
+            SaveInfo: function(Info) {
+                if (Info.Active.ActionType.GetKind() === CActionType.BUFF) {
+                    for (var i = 0; i < Info.gPassive.length; ++i)
+                        this.push(Info.ActiveRow,[Info.gPassive[i].Char, Info.Active.Skill, Info.Active.gItem,new CBuffType(Info.Active.nIniRoll == null?'回合前':'回合中')], [0]);
                 }
             }
         }
@@ -2198,7 +2259,7 @@
             return false;
 
         if (Node.innerHTML == "&nbsp;")
-            return false;
+            return true;
 
         // \1	ini
         // \2	current action
@@ -2319,12 +2380,16 @@
                         nStartNode += result[5] != null ? 4 : 2;
                         var ItemNode;
                         while ((ItemNode = Node.childNodes[nStartNode]) != null) {
-                            var temp_item = new CItem(ItemNode);
-                            if (temp_item._Name != null) {
-                                active.gItem.push(temp_item);
-                            };
-                            nStartNode += 2;
-                        }
+                            if(ItemNode.tagName == 'A')
+							{
+								active.gItem.push(new CItem(ItemNode));
+								nStartNode += 2;
+							}
+							else
+							{
+								nStartNode++;
+							}
+                       }
                     }
                     return true;
                 }
@@ -2334,7 +2399,7 @@
                     // \1	MP
                     // \2	normal item list
                     // \3	magical potion
-                    var Patt_HealBuffDetails = Local.Pattern_Active_HealBuffDetails;
+					var Patt_HealBuffDetails = Local.Pattern_Active_HealBuffDetails;
                     result = Patt_HealBuffDetails.exec(Str);
                     if (result == null) {
                         DbgMsgAction(Info, "ActiveInfo (HealBuffDetails): " + Node.innerHTML);
@@ -2346,8 +2411,15 @@
                         nStartNode += result[1] != null ? 2 : 0;
                         var ItemNode;
                         while ((ItemNode = Node.childNodes[nStartNode]) != null) {
-                            active.gItem.push(new CItem(ItemNode));
-                            nStartNode += 2;
+                            if(ItemNode.tagName == 'A')
+							{
+								active.gItem.push(new CItem(ItemNode));
+								nStartNode += 2;
+							}
+							else
+							{
+								nStartNode++;
+							}
                         }
                     } else if (result[3] != null) {
                         active.gItem = new CKeyList();
@@ -2544,11 +2616,11 @@
         Pattern_Active_Action2: [/^\s*([\S].*[\S])\s*$/,
         /^\s*([\S].*[\S])\s*$/],
         Pattern_Active_AttackDetails: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
-        /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) 法力(?:<\/b>)?<\/span>)?\)$/],
+        /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) 法力(?:<\/b>)?<\/span>)?\)$/],
         Pattern_Active_HealBuffDetails: [/^(?:<span .*?>([\d]+) MP<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
-        /^(?:<span .*?>(?:-|\+)?([\d]+) (?:法力|神力|怒气)<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?:给)?$/],
+        /^(?:<span .*?>(?:-|\+)?([\d]+) (?:法力|神力|怒气)<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*))?\)(?:给)?$/],
         Pattern_Passive_Attacked: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[A-Za-z ]+<\/span>( - [A-Za-z ]+)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[A-Za-z ]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/,
-        /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[^\u0000-\u007F]+<\/span>( - [^\u0000-\u007F]+ *)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[^\u0000-\u007F]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> (?:-|\+)([\d]+) HP)?(?:(<br>)|$)/],
+        /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*)?\): <span class="([A-Za-z_]+)">[^\u0000-\u007F]+<\/span>( - [^\u0000-\u007F]+ *)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[^\u0000-\u007F]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> (?:-|\+)([\d]+) HP)?(?:(<br>)|$)/],
         Pattern_BasicDamage: [/causes: <b>([\d]+)<\/b>/,
         /造成: <b>([\d]+)<\/b>/],
         Pattern_Damage: [/^((?:-)?[\d]+) (?:\[((?:\+|-)[\d]+)\] )?([A-Za-z][A-Za-z ]+[A-Za-z])$/,
@@ -2677,6 +2749,8 @@
         theStat.RegInfoList(new CILDamage(CVLDamage, isExport));
         theStat.RegInfoList(new CILHeal(CVLNumber, isExport));
         theStat.RegInfoList(new CILHealed(CVLNumber, isExport));
+        theStat.RegInfoList(new CILBuff(CVLString, isExport));
+        theStat.RegInfoList(new CILBuffed(CVLString, isExport));
         theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
         return theStat;
     }
