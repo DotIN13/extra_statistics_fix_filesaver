@@ -745,25 +745,24 @@
 		var numberPatten = /^\s?([\d]+\.?[\d]*)\s?_?\s?([\d]*\.?[\d]*)\s?$/;
 		var pairTable = cell.firstChild;
 		var numberString = cell.textContent;
+		var numbers = [];
 		if(pairTable && pairTable.nodeName == "TABLE")
 		{
 			numberString = pairTable.id;
 		}
-		if(!numberPatten.test(numberString))
-			return null;
-		else
+		if(numberPatten.test(numberString))
 		{
 			var numberres = numberPatten.exec(numberString);
-			var numbers = [];
 			if(numberres[1])
 				numbers.push(numberres[1]);
 			if(numberres[2])
 				numbers.push(numberres[2]);
-			return numbers;
 		}
+		return numbers;
 	}
 	CTable.OnChangeFilter = function(tableId,filterRowId) {
-        try {
+        debugger;
+		try {
             var Table = document.getElementById(tableId);
 			var filterRow = document.getElementById(filterRowId);
 			var stringfilters = [];
@@ -785,9 +784,10 @@
 			}
 			var index = 0;
 			var patten = /([\(|\[|>|<|=|]*)\s*([\d]*\.?[\d]*)\s*-?\s*([\d]*\.?[\d]*)\s*([\)|\]|\s]?)/;
-			for(var i = 2;i< Table.rows.length;i++)
+			for(var i = 2;i< Table.rows.length;i=i+2)
 			{
 				var row = Table.rows[i];
+				var rowInfo = Table.rows[i+1];
 				var rowIds = row.id.split(",");
 				var show = true;
 				for(var fi =0; fi<stringfilters.length;fi++)
@@ -811,7 +811,7 @@
 							continue;
 						else 
 						{
-							var numbers = CTable.GetNumber(row.cells[fi])|[];
+							var numbers = CTable.GetNumber(row.cells[fi]);
 							var nfilters = nfilter.split(/\s*[,|，]\s*/);
 							for(ni = 0; ni < numbers.length; ni++)
 							{
@@ -857,9 +857,11 @@
 					}
 				}
 				row.style.display = show? '':'none';
+				rowInfo.style.display = show? rowInfo.style.display:'none';
 				if(show)
 				{
 					row.className = "row" + index % 2;
+					rowInfo.className = row.className;
 					index++;
 				}
 				
@@ -877,56 +879,59 @@
 			index = 0;
 		var th = ths[columnIndex];
 		var order = th.getAttribute("order");
-		for(var i = 2;i< Table.rows.length-1;i++)
+		for(var i = 2;i< Table.rows.length-2;i=i+2)
 		{
-			for(var j = i+1;j< Table.rows.length;j++)
+			for(var j = i+2;j< Table.rows.length;j=j+2)
 			{
 				var row_1 = Table.rows[i];
+				var row_1_info = Table.rows[i+1];
 				var row_2 = Table.rows[j];
+				var row_2_info = Table.rows[j+1];
 				var cell_1 = row_1.cells[columnIndex];
 				var cell_2 = row_2.cells[columnIndex];
 				
 				n1 = CTable.GetNumber(cell_1);
 				n2 = CTable.GetNumber(cell_2);
 				var change = false;
-				if(n1 && n2)
+
+				if(columnIndex == ths.length -1)
 				{
-					var number_1 = n1[index] * order;
-					var number_2 = n2[index] * order;
-					change = number_1 > number_2;
+					var n1 = Number(row_1.getAttribute("oriorder"));
+					var n2 = Number(row_2.getAttribute("oriorder"));
+					change = n1>n2;
 				}
 				else
 				{
-					if(columnIndex == ths.length -1)
+					var c1 = row_1.cells[0].firstChild.className.replace("my","");
+					var c2 = row_2.cells[0].firstChild.className.replace("my","");
+					var s1 = cell_1.textContent;
+					var s2 = cell_2.textContent;
+					var cc = CompareString(c1,c2);
+					if(cc < 0)
+						change = false;
+					else if(cc > 0)
+						change = true;
+					else 
 					{
-						var n1 = Number(row_1.getAttribute("oriorder"));
-						var n2 = Number(row_2.getAttribute("oriorder"));
-						change = n1>n2;
-					}
-					else
-					{
-						var c1 = "";
-						var c2 = "";
-						if(columnIndex == 0)
+						if(n1 && n2)
 						{
-							c1 = cell_1.firstChild.className.replace("my","");
-							c2 = cell_2.firstChild.className.replace("my","");
+							var number_1 = n1[index] * order;
+							var number_2 = n2[index] * order;
+							change = number_1 > number_2;
 						}
-						var s1 = cell_1.textContent;
-						var s2 = cell_2.textContent;
-						var cc = CompareString(c1,c2);
-						if(cc < 0)
-							change = false;
-						else if(cc > 0)
-							change = true;
-						else if( CompareString(s1,s2) == order)
-							change = true;
+						else
+							change = (CompareString(s1,s2) == order);
 					}
 				}
+				
 				if(change)
-					row_1.parentNode.insertBefore(row_2,row_1);
-			}
-			Table.rows[i].className = "row" + i % 2;
+				{
+					row_2.parentNode.insertBefore(row_2,row_1);
+					row_2_info.parentNode.insertBefore(row_2_info,row_1);
+				}
+			}			
+			Table.rows[i].className = "row" + (i/2) % 2;
+			Table.rows[i+1].className = Table.rows[i].className;
 		}
 		th.setAttribute("order",-1*order);
 	};
@@ -942,7 +947,9 @@
 		{
 			if(cell.innerHTML === "")
 			{	
-				var str= "<table>";
+				var str= '<table width="100%"><tdoby>';
+				str += '<tr><td colspan="3" align="center">' + button.getAttribute('data') + '</td></tr>';
+				str += '<tr><td colspan="3"><hr/></td></tr>'
 				for(var i = 0;i<activeRows.length;i++)
 				{
 					var theRow = document.getElementById(activeRows[i]);
@@ -950,7 +957,7 @@
 					if(i < activeRows.length - 1)
 						str += '<tr><td colspan="3"><hr/></td></tr>';
 				}
-				str += "</table>";
+				str += "</tdoby></table>";
 				cell.innerHTML = str;
 			}			
 			if(row.style.display == '')
@@ -1465,7 +1472,8 @@
             Calculate: function() {},
             push: function(ActiveRow,Value) {
 				this._nValue.push(Value);
-				this._ActiveValue.push(ActiveRow);
+				if(this._ActiveValue.indexOf(ActiveRow) <= -1)
+					this._ActiveValue.push(ActiveRow);
                 var activeValue = new CActiveValue(ActiveRow,Value);
 				return this._gValue.push(activeValue);
             },
@@ -1705,7 +1713,7 @@
                     return info.ValueList.STDValueStr();
                 case Local.Text_Table_RollList:
                     //return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show], ["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
-                    return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show]);
+                    return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show],["data",info.ValueList.toString()]);
                 default:
                     return this.Name;
             }
@@ -2062,7 +2070,27 @@
         }
     });
 
+    var CILBuff = DefineClass({
+        extend: CInfoList,
+        construct: function(CValueList) {
+            this.superclass(CValueList, Local.Text_Table_Buff, "stat_buff", [CKeyType.Char(), CKeyType.Skill(), CKeyType.Item(), CKeyType.HealType()],
+                CKeyType.ValueName());
+        },
+        methods: {
+            SaveInfo: function(Info) {
+                if (Info.Active.ActionType.GetKind() === CActionType.HEAL) {
+                    for (var i = 0; i < Info.gPassive.length; ++i) {
+                        if (Info.gPassive[i].nHealedHP != null)
+							this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('HP')], [Number(Info.gPassive[i].nHealedHP)]);
 
+						if (Info.gPassive[i].nHealedMP != null)
+                            this.push(Info.ActiveRow,[Info.Active.Char, Info.Active.Skill, Info.Active.gItem, new CHealType('MP')], [Number(Info.gPassive[i].nHealedMP)]);
+                    }
+                }
+            }
+        }
+    });
+	
     var CILHealed = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
@@ -2565,10 +2593,16 @@
         "伤害类型"],
         Text_Table_HealType: ["Heal Type",
         "治疗类型"],
+        Text_Table_BuffType: ["Buff Type",
+        "增益类型"],
         Text_Table_Heal: ["Healing By The Hero",
         "给予治疗"],
         Text_Table_Healed: ["Healing On The Hero",
         "接受治疗"],
+        Text_Table_Buff: ["Buffing By The Hero",
+        "给予增益"],
+        Text_Table_Buffed: ["Buffing On The Hero",
+        "接受增益"],
         Text_Table_DamagedItems: ["Damaged Items",
         "物品损坏"],
         Text_Table_Char: ["Character",
@@ -2595,6 +2629,8 @@
         "次数"],
         Text_Table_RollList: ["Roll list",
         "数值列表"],
+        Text_Table_DetailList: ["Detail list",
+        "详细列表"],
         Text_Table_ItemDamagePoints: ["Damage Points",
         "损坏点数"],
         Text_Table_AllData: ["All",
