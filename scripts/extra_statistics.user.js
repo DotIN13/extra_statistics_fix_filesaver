@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.05
+// @version			2.06
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -2936,8 +2936,11 @@
 			if(theInput.className == "paginator_selected clickable")
 			{
 				var Result = IndexPatt.exec(theInput.value);
-				pages.push(Number(Result[1]));
-				ret[0] = Number(Result[1]);
+				if(Result && Result[1])
+				{
+					pages.push(Number(Result[1]));
+					ret[0] = Number(Result[1]);
+				}
 			}
 		}
         allInputs = page.getElementsByTagName("a");
@@ -2946,7 +2949,8 @@
 			if(theInput.className == "paginator")
 			{
 				var Result = IndexPatt.exec(theInput.textContent);
-				pages.push(Number(Result[1]));
+				if(Result && Result[1])
+					pages.push(Number(Result[1]));
 			}
 		} 		
 		if(pages.length > 0)
