@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.06
+// @version			2.07
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -635,8 +635,19 @@
 					if(content.rowspan > 1)
 						rowspan = ' rowspan="' + content.rowspan + '" style="vertical-align: middle;" ';
 					rowStr += '<td class="content_table" ' + rowspan + 
-						this._BodyCellContentTypes[j] + '>' +
-						this._BodyCellContents[i][j].value + '</td>';
+						this._BodyCellContentTypes[j] + '>' ;
+					if(this._isExport && j == this._nColumns -1)
+					{
+						var tempDiv = document.createElement("div");
+						tempDiv.innerHTML = this._BodyCellContents[i][j].value;
+						var button = tempDiv.getElementsByTagName("input")[0];
+						button.setAttribute("onclick", "sd('" + tableid + "_" + i + "',['" + this._BodyCellContents[i][0].activeRows.join("','") + "']);");
+						rowStr += tempDiv.innerHTML + '</td>';
+					}
+					else
+					{
+						rowStr += this._BodyCellContents[i][j].value + '</td>';
+					}
 				}
 				rowId.push(j + "_" + this._BodyCellContents[i][j].filterId);
             }
@@ -966,12 +977,12 @@
 			}			
 			if(row.style.display == '')
 			{
-				button.value = Local.Text_Button_Show;
+				button.value = '显示';
 				row.style.display = 'none';
 			}
 			else
 			{
-				button.value = Local.Text_Button_Hide;
+				button.value = '隐藏';
 				row.style.display = '';
 			}
 		}
@@ -3313,6 +3324,7 @@
 				scriptStr +='ct = ' + CTable.OnClickTitle.toString() + '\n';
 				scriptStr +='cf = ' + CTable.OnChangeFilter.toString() + '\n';
 				scriptStr +='co = ' + CTable.OnChangeOrder.toString() + '\n';
+				scriptStr +='sd = ' + CTable.OnShowDetail.toString() + '\n';
 			}
 			script.firstChild.data = scriptStr;										
 		}
