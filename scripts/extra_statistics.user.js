@@ -1417,7 +1417,7 @@
                 return CompareString(this._sType, that._sType);
             },
             toString: function() {
-                return this._sType;
+                return this._sType.replace('伤害','');
             }
         }
     });
@@ -1819,6 +1819,14 @@
 
     CKeyType.Char = function() {
         return new CKeyType(Local.Text_Table_Char, "string");
+    }
+	
+	CKeyType.ProviderChar = function() {
+        return new CKeyType(Local.Text_Table_Buffer, "string");
+    }
+
+	CKeyType.ReceiverChar = function() {
+        return new CKeyType(Local.Text_Table_BuffeReceiver, "string");
     }
 
     CKeyType.AttackType = function() {
@@ -2651,7 +2659,7 @@
         Pattern_Damage: [/^((?:-)?[\d]+) (?:\[((?:\+|-)[\d]+)\] )?([A-Za-z][A-Za-z ]+[A-Za-z])$/,
         /^((?:-)?[\d]+) (?:\[((?:\+|-)[\d]+)\] )?([^\u0000-\u007F]+)$/],
         Pattern_Passive_Healed_Buffed: [/^(?:(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s+|(themselves))(?: \+([\d]+) HP)?(?: \+([\d]+) MP)?(?:(<br>)|$)/,
-        /^(?:(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s+|(自己))(?: \+([\d]+) HP)?(?: \+([\d]+) (?:法力|神力|怒气))?(?:(<br>)|$)/],
+        /^(?:(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s+|(自己|自身))(?: \+([\d]+) HP)?(?: \+([\d]+) (?:法力|神力|怒气))?(?:(<br>)|$)/],
         Text_Button_ExtraStat: ["Extra Stat",
         "额外统计"],
         Text_Button_EntireStat: ["Entire Extra Stat",
@@ -2700,6 +2708,10 @@
         "给予增益"],
         Text_Table_Buffed: ["Buffing On The Hero",
         "接受增益"],
+        Text_Table_Buffer: ["Buffing Provider",
+        "提供者"],
+        Text_Table_BuffeReceiver: ["Buffing Receiver",
+        "提供给"],
         Text_Table_DamagedItems: ["Damaged Items",
         "物品损坏"],
         Text_Table_Char: ["Character",
@@ -2775,7 +2787,7 @@
         theStat.RegInfoList(new CILHeal(CVLNumber, isExport));
         theStat.RegInfoList(new CILHealed(CVLNumber, isExport));
         theStat.RegInfoList(new CILBuff(CVLString, isExport));
-        theStat.RegInfoList(new CILBuffed(CVLString, isExport));
+        //theStat.RegInfoList(new CILBuffed(CVLString, isExport));
         theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
         return theStat;
     }
