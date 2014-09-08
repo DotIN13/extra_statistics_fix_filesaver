@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.07
+// @version			2.08
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -583,7 +583,7 @@
             exportString = ' onclick="co('+ "'" + tableid + "'," + i +",0);" +'"';
 			if (!this._isExport)
 				exportString = "";
-			var headerText = '<span id="' + this._Id + "_col" + i + '" class="clickable" ' + exportString + '>' + this._HeadCellContents[i] + '<span><span';
+			var headerText = '<span id="' + this._Id + "_col" + i + '" class="clickable" ' + exportString + '>' + this._HeadCellContents[i] + '</span><span />';
 			this._HTML += '<th class="content_table stat_order" id="th_' + this._Id + i + '" order="1" >' + headerText + '</th>';
 		}
         this._HTML += '</tr>';
@@ -889,6 +889,17 @@
 			index = 0;
 		var th = ths[columnIndex];
 		var order = th.getAttribute("order");
+		for(var i=0; i< ths.length - 1; i++)
+		{
+			var spans = ths[i].getElementsByTagName('span');
+			if(spans && spans.length >=2)
+			{
+				if(i != columnIndex)
+					spans[spans.length -1].innerHTML = '';
+				else
+					spans[spans.length -1].innerHTML = order>0?'&#9650;':'&#9660;';
+			}
+		}
 		for(var i = 2;i< Table.rows.length-2;i=i+2)
 		{
 			for(var j = i+2;j< Table.rows.length;j=j+2)
