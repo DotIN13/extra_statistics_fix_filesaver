@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.08
+// @version			2.09
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -212,9 +212,9 @@
     function DefineClass(data) {
         // Extract the fields we'll use from the argument object.
         // Set up default values.
-        var classname = data.name;
+		var classname = data.name;
         var superclass = data.extend || Object;
-        var constructor = data.construct || function() {};
+        var constructor = data.construct ||  function() {};
         var methods = data.methods || {};
         var statics = data.statics || {};
         var borrows;
@@ -436,9 +436,21 @@
         this.nTotalPages = 0;
         this.nReadPages = 0;
         this.setNode = function(newNode) {
-            var NewSection = document.createElement("div");
+            if(this._Node)
+			{
+				var divs = newNode.parentNode.getElementsByTagName('div');
+				for(var i=0; i<divs.length;i++)
+				{
+					if(divs[i].id == "stat_all")
+					{
+						newNode.parentNode.removeChild(divs[i]);
+						break;
+					}
+				}
+			}
+			var NewSection = document.createElement("div");
             NewSection.id = "stat_all";
-			NewSection.className = "stat_all";
+			NewSection.className = "stat_all tab";
             if (newNode.parentNode)
                 this._Node = newNode.parentNode.insertBefore(NewSection, newNode);
             else {
@@ -470,27 +482,42 @@
         for (var i = 0; i < this._gInfoList.length; ++i)
             this._gInfoList[i].SaveInfo(Info);
     };
-
-    CStat.prototype.Show = function() {
-        this._Write("<hr />");
-        for (var i = 0; i < this._gInfoList.length; ++i)
-            this._Write(this._gInfoList[i].Show());
-        this._Write(this._OptionsHTML());
-        this._Write("<hr />");
-        this._Flush();
-
-        for (var i = 0; i < this._gInfoList.length; ++i)
-            this._gInfoList[i].AddEvents();
-        this._AddEvents();
-    };
-
-    CStat.prototype.Export = function() {
-        this._Write("<hr />");
-        for (var i = 0; i < this._gInfoList.length; ++i)
-            this._Write(this._gInfoList[i].Export());
-        this._Write("<hr />");
-        this._Flush();
-    };
+	
+	CStat.prototype.Show = function(isExport) {
+		this._Node.innerHTML = '';
+		var tabs = document.createElement ("ul");
+		this._Node.appendChild(tabs);
+		var bar = document.createElement('div');
+		bar.id = 'stat_bar';
+		bar.className = 'bar';
+		this._Node.appendChild(bar);
+        var tabDivs = [];
+		var isFirst = true;
+		for (var i = 0; i < this._gInfoList.length; ++i)
+		{
+			var infoNode = this._gInfoList[i].Show(isExport);
+			var tab = this._gInfoList[i].getTab(isExport);
+			if(tab && infoNode)
+			{
+				tabs.appendChild(tab);
+				this._Node.appendChild(infoNode);
+				tabDivs.push(infoNode.id);
+				if(isFirst)
+				{
+					tab.className = 'selected';
+					infoNode.style.display = '';
+					isFirst = false;
+				}
+				else
+				{
+					tab.className = 'not_selected';
+					infoNode.style.display = 'none';
+				}
+			}
+		}
+		this._Node.setAttribute('tabs',tabDivs.join(','));
+		this._Node.appendChild(document.createElement('hr'));		
+	};
 
     CStat.prototype.ShowProgress = function() {
         this._Node.innerHTML = '<hr /><h1>' + Local.Text_Loading + ' (' +
@@ -519,7 +546,26 @@
         }
         document.getElementById("stat_options_default").addEventListener("click", OnDelGMValues, false);
     };
-
+	CStat.OnTabClick = function(id){
+		var statdiv = document.getElementById('stat_all');
+		var tabs = statdiv.getAttribute('tabs').split(',');
+		for(var i = 0; i< tabs.length;i++)
+		{
+			var tabid = tabs[i];
+			var tab = document.getElementById(tabid);
+			var li = document.getElementById('tab_' + tabid);
+			if(tabid == id)
+			{
+				tab.style.display = '';
+				li.className = 'selected';
+			}
+			else
+			{
+				tab.style.display = 'none';
+				li.className = 'not_selected';
+			}
+		}
+	}
 
     ///////////////////////////////////////////////////////////////////////////////
     function CTable(Title, Id, nColumns, isExport) {
@@ -537,9 +583,9 @@
     }
 
     CTable._ContentAttrs = {
-        string: '',
-        number: 'align="right"',
-        button: 'align="center"'
+        string: 'left',
+        number: 'right',
+        button: 'center'
     };
 
     CTable.prototype.SetHeadCellContentFilters = function( /* Content1, Content2, ... */ ) {
@@ -568,115 +614,11 @@
     };
 
     CTable.prototype.CreateHTML = function() {
-        //var exportString = ' onclick="if(this.parentNode.nextSibling.style.display == ' + "'none' ){this.parentNode.nextSibling.style.display='';} else {this.parentNode.nextSibling.style.display='none'" + '};"';
-		var tableid = "table_" + this._Id;
-        exportString = ' onclick="ct('+ "'" + tableid + "');" +'"';
-		if (!this._isExport)
-            exportString = "";
-        this._HTML = '<div id="' + this._Id + '">' +
-            '<div class="stat_header"><span class="stat_title clickable"' + exportString + '>' + this._Title + '</span></div>' +
-            '<table class="content_table" id="' + tableid + '" ' + (this._bShow ? '' : 'hide="hide"') + '>' +
-			'<tr class="content_table_header">';
-
-        for (var i = 0; i < this._nColumns; ++i)
-		{
-            exportString = ' onclick="co('+ "'" + tableid + "'," + i +",0);" +'"';
-			if (!this._isExport)
-				exportString = "";
-			var headerText = '<span id="' + this._Id + "_col" + i + '" class="clickable" ' + exportString + '>' + this._HeadCellContents[i] + '</span><span />';
-			this._HTML += '<th class="content_table stat_order" id="th_' + this._Id + i + '" order="1" >' + headerText + '</th>';
-		}
-        this._HTML += '</tr>';
-		if(useFilter)
-		{
-			this._HTML += '<tr id="' + this._filterId + '" class="content_table_filter_row">';
-			for (var i = 0; i < this._nColumns-1; ++i)
-			{
-				this._HTML += '<td>';
-				if(this._HeadCellContentFilters != null)
-				{
-					if(this._HeadCellContentFilters[i] != null)
-					{
-						var filter = this._HeadCellContentFilters[i];
-						var comboxboxid = this._filterId + "_combobox_" + i ;
-						this._HTML += '<select id="' + comboxboxid + '"';
-						if(this._isExport)
-							this._HTML += ' onchange="cf(' +"'" + tableid + "','" + this._filterId + "'" + ');"';
-						this._HTML += '>';
-						this._HTML += '<option value="' + i + '_' + 'all" >' + Local.Text_Table_AllData + '</option>';
-						for(var j=0;j<filter.length;j++)
-						{
-							this._HTML += '<option value="' + i + '_' + j + '">' + filter[j] + '</option>';
-						}
-						this._HTML += '</select>';
-					}
-					else
-					{
-						this._HTML += '<input type="text" id="' + this._filterId + "_textbox_" + i + '" size="8">';
-					}
-				}
-				this._HTML += '</td>';
-			}
-			this._HTML += '<td><input type="button" class="button" value="查询" id="' + this._filterId + "_button" + '"';
-			if(this._isExport)
-				this._HTML += ' onclick="cf(' +"'" + tableid + "','" + this._filterId + "'" +  ');"';
-			this._HTML += '></td></tr>';
-		}
-		
-        for (var i = 0; i < this._BodyCellContents.length; ++i) {
-            this._HTML += '<tr class="row' + i % 2 + '" oriorder="' + i + '"';
-			var rowStr = "";
-			var rowId = [];
-            for (var j = 0; j < this._nColumns; ++j) {
-				var rowspan = "";
-				var content = this._BodyCellContents[i][j];
-                if(content.show)
-				{
-					if(content.rowspan > 1)
-						rowspan = ' rowspan="' + content.rowspan + '" style="vertical-align: middle;" ';
-					rowStr += '<td class="content_table" ' + rowspan + 
-						this._BodyCellContentTypes[j] + '>' ;
-					if(this._isExport && j == this._nColumns -1)
-					{
-						var tempDiv = document.createElement("div");
-						tempDiv.innerHTML = this._BodyCellContents[i][j].value;
-						var button = tempDiv.getElementsByTagName("input")[0];
-						button.setAttribute("onclick", "sd('" + tableid + "_" + i + "',['" + this._BodyCellContents[i][0].activeRows.join("','") + "']);");
-						rowStr += tempDiv.innerHTML + '</td>';
-					}
-					else
-					{
-						rowStr += this._BodyCellContents[i][j].value + '</td>';
-					}
-				}
-				rowId.push(j + "_" + this._BodyCellContents[i][j].filterId);
-            }
-			this._HTML += '" id = "' + rowId.join(",") + '">' + rowStr + '</tr>';
- 			this._HTML += '<tr style="display: none;" class="row' + i % 2 + '" id = "' + tableid + '_' + i + '"><td colspan="' + this._nColumns + '" /></tr>';
-       }
-        this._HTML += '</table></div>';
-
-        return this._HTML;
-    };
-
-    CTable.prototype.GetHTML = function() {
-        return this._HTML;
-    };
-
-    CTable.prototype.AddEvents = function() {
-        var node = document.getElementById(this._Id);
-        if (!node)
-            return;
-		var tableid = "table_" + this._Id;
-		var filterRowId = "filter_" + this._Id;
-        var Title = node.getElementsByTagName("span")[0];
-
-        function Factory(Id) {
+		function Factory(Id) {
             return function() {
                 CTable.OnClickTitle(Id);
             };
 		}
-
         function FactoryFilter(tableid,rowId) {
             return function() {
                 CTable.OnChangeFilter(tableid,rowId);
@@ -692,47 +634,143 @@
                 CTable.OnShowDetail(rowId,activeRows);
             };
 		}
-        Title.addEventListener("click", Factory(tableid), false);
 		
-		if(useFilter)
+		var tableid = "table_" + this._Id;
+		var outputDiv = document.createElement('div');
+		outputDiv.id = this._Id;
+		outputDiv.className = 'content';
+		var headerDiv = document.createElement('div');
+		outputDiv.appendChild(headerDiv);
+		headerDiv.className = 'stat_header';
+		headerDiv.style.textAlign = 'center';
+		var spanTitle = document.createElement('span');
+		spanTitle.className = "stat_title clickable";
+		headerDiv.appendChild(spanTitle);
+		spanTitle.innerHTML = this._Title;
+		if(this._isExport)
+			spanTitle.setAttribute('onclick',"ct('" + tableid + "');");
+		else
+			spanTitle.addEventListener("click", Factory(tableid), false);
+		var table = document.createElement("table");
+		table.className = "content_table";
+		table.style.margin = '0px auto';
+		table.id = tableid;
+		if(!this._bShow)
+			table.setAttribute('hide','hide');
+		outputDiv.appendChild(table);
+		
+		var trHeader = table.insertRow(0);
+		trHeader.className = "content_table_header";
+        for (var i = 0; i < this._nColumns; ++i)
 		{
-			var filterRow = document.getElementById(filterRowId);
-			var buttonid = filterRowId + "_button";
-			var filterbutton = document.getElementById(buttonid);
-			if(filterbutton)
-				filterbutton.addEventListener("click", FactoryFilter(tableid,filterRowId), false);
-			for(var i = 0; i< filterRow.cells.length; i++)
+			var th = document.createElement("th");
+			th.className = "content_table stat_order";
+			th.id = 'th_' + this._Id + i;
+			th.setAttribute('order','1');
+			var thSpan = document.createElement("span");
+			thSpan.id =  this._Id + "_col" + i;
+			thSpan.className = "clickable";
+			if(this._isExport)
+				thSpan.setAttribute('onclick', "co('" + tableid + "'," + i +",0);");
+			else
+				thSpan.addEventListener("click", FactorySort(tableid,i,0), false);
+			thSpan.innerHTML = this._HeadCellContents[i];
+			th.appendChild(thSpan);
+			th.appendChild(document.createElement("span"));
+			trHeader.appendChild(th);
+		}
+		
+		if(useFilter){
+			var trfilter = table.insertRow(-1);
+			trfilter.id = this._filterId;
+			trfilter.className = "content_table_filter_row";
+			for (var i = 0; i < this._nColumns-1; ++i)
 			{
-				var cell = filterRow.cells[i];
-				var comboboxid = filterRowId + "_combobox_" + i;
-				var comboboxfilter = document.getElementById(comboboxid);
-				if(comboboxfilter)
-					comboboxfilter.addEventListener("change", FactoryFilter(tableid,filterRowId), false);
+				var cell = trfilter.insertCell(-1);
+				if(this._HeadCellContentFilters != null)
+				{
+					if(this._HeadCellContentFilters[i] != null)
+					{
+						var filter = this._HeadCellContentFilters[i];
+						var comboxboxid = this._filterId + "_combobox_" + i ;
+						var comboxbox = document.createElement("select");
+						cell.appendChild(comboxbox);
+						comboxbox.id = comboxboxid;
+						if(this._isExport)
+							comboxbox.setAttribute('onchange',"cf('" + tableid + "','" + this._filterId + "');");
+						else
+							comboxbox.addEventListener("change", FactoryFilter(tableid,this._filterId), false);
+						comboxbox.options.add( new Option(Local.Text_Table_AllData,i + '_' + 'all'));
+						for(var j=0;j<filter.length;j++)
+							comboxbox.options.add( new Option(filter[j],i + '_' + j));
+					}
+					else
+					{
+						var input = document.createElement("input");
+						input.type = "text";
+						input.size = 8;
+						cell.appendChild(input);
+					}
+				}
 			}
+			var searchButton = document.createElement("input");	
+			searchButton.type = 'button';
+			searchButton.id = this._filterId + "_button";
+			searchButton.value="查询";
+			searchButton.className ="button";
+			if(this._isExport)
+				searchButton.setAttribute('onclick', "cf('" + tableid + "','" + this._filterId + "');");
+			else
+				searchButton.addEventListener("click", FactoryFilter(tableid,this._filterId), false);
+			trfilter.insertCell(-1).appendChild(searchButton);	
 		}
-		var ths = node.getElementsByTagName("th");
-		for(var i=0; i< ths.length;i++)
-		{
-			var order = ths[i].getAttribute("order");
-			ths[i].addEventListener("click", FactorySort(tableid,i,0), false);			
-		}
-		var tables = node.getElementsByTagName("table");
-		var table;
-		for(var i=0;i<tables.length;i++)
-		{
-			if(tables[i].id == tableid)
-			{
-				table = tables[i];
-				break;
-			}
-		}
-		for(var i=2; i<table.rows.length;i= i+2)
-		{
-			var button = table.rows[i].getElementsByTagName('input')[0];
-			var id = (i-2)/2;
-			button.addEventListener("click", FactoryShowDetail(tableid + '_' + id,this._BodyCellContents[id][0].activeRows), false);			
-		}
+        for (var i = 0; i < this._BodyCellContents.length; ++i) {
+            var row = table.insertRow(-1);
+			row.className = "row" + i % 2;
+			row.setAttribute('oriorder',i);
+			var rowId = [];
+			var infoRowid = tableid + '_' + i;
+            for (var j = 0; j < this._nColumns; ++j) {
+				var rowspan = "";
+				var content = this._BodyCellContents[i][j];
+                if(content.show)
+				{
+					var cell = row.insertCell(-1);
+					cell.className = "content_table";
+					cell.style.textAlign = this._BodyCellContentTypes[j];
+					if(content.rowspan > 1)
+					{
+						cell.rowSpan = content.rowspan;
+						cell.style.verticalAlign = 'middle';
+					}
+					var valueNode = content.value;
+					cell.appendChild(valueNode);
+					if(j == this._nColumns -1)
+					{
+						if(this._isExport)
+							valueNode.setAttribute("onclick", "sd('" + infoRowid + "',['" + content.activeRows.join("','") + "']);");
+						else
+							valueNode.addEventListener("click", FactoryShowDetail(infoRowid ,this._BodyCellContents[i][0].activeRows), false);
+					}
+				}
+				rowId.push(j + "_" + this._BodyCellContents[i][j].filterId);
+            }
+			row.id = rowId.join(",");
+			var infoRow = table.insertRow(-1);
+			infoRow.className = row.className;
+			infoRow.id = infoRowid;
+			infoRow.style.display = 'none';
+			infoRow.insertCell(-1).colSpan = this._nColumns;
+		}		
+		return outputDiv;
+		//this._HTML = outputDiv.outerHTML;
+		//return 	this._HTML;	
 	};
+	
+	CTable.prototype.GetHTML = function() {
+        return this._HTML;
+    };
+
 
     CTable.OnClickTitle = function(Id) {
         try {
@@ -1067,15 +1105,19 @@
                 return this - that;
             },
             toString: function() {
-                return "";
+				var theNode = this.toHTMLNode();
+				return (theNode.nodeType == Node.COMMENT_NODE || theNode.nodeType == Node.TEXT_NODE)? theNode.data:theNode.outerHTML;
             },
 			toText: function() {
-				return this.toString();
+				return this.toHTMLNode().textContent;
+			},
+			toHTMLNode: function() {
+				return document.createTextNode("");
 			}
         }
     });
-
-
+	CKey.UNKNOWN = -1;
+	
     var CKeyList = DefineClass({
         extend: CKey,
         construct: function() {
@@ -1098,253 +1140,122 @@
                 else
                     return this._gKey[i].compareTo(that._gKey[i]);
             },
-            toString: function() {
-                return this._gKey.join(", ");
-            }
+			toHTMLNode: function() {
+				var ret = document.createElement('span');
+				ret.innerHTML = this._gKey.join(", ");
+				return ret;
+			}
         }
     });
-
-
-    var CChar = DefineClass({
+	
+	var CTypeKey = DefineClass({
         extend: CKey,
-        construct: function(HTMLElement) {
-            this._Name;
-            this._Href;
-            this._OnClick;
-            this._Class;
-            this._nType;
-
-            if (HTMLElement != null) {
-                this._Name = HTMLElement.firstChild.data;
-                this._Href = HTMLElement.getAttribute("href");
-                this._OnClick = HTMLElement.getAttribute("onclick");
-                this._Class = HTMLElement.className;
-                this._nType = CChar._GetCharType(this._Class);
-                if (this._nType === null)
-                    DbgMsg("CChar(): Unknown type: " + this._Class);
+        construct: function(TypeText) {
+            this._sType;
+            this._nKind = CKey.UNKNOWN;
+			this._text;
+            if (TypeText != null) {
+                this._sType = TypeText;
+				this._text = TypeText;
+				this.Init();
             }
         },
         methods: {
+			Init: function(){},
 			GetType: function() {
-                return this._nType;
+                return this._sType;
             },
-            compareTo: function(that) {
-                var result = this._nType - that._nType;
-                if (result !== 0)
-                    return result;
-                return CompareString(this._Name, that._Name);
-            },
-            toString: function() {
-                if (this._Name != null)
-                    return CreateElementHTML("a", this._Name, ["href", this._Href], ["onclick", this._OnClick], ["class", this._Class]);
-                else
-                    return "";
+            GetKind: function(){
+				return this._nKind;
+			},
+			compareTo: function(that) {
+                return CompareString(this._sType, that._sType);
             },
 			toText: function() {
-				return this._Name != null? this._Name : "";
+				return this._text;
+			},
+			setText: function(text) {
+				this._text = text;
+			},
+			toHTMLNode: function() {
+				return document.createTextNode(this._text);
 			}
-        },
-        statics: {
-            _GetCharType: function(Class) {
-                switch (Class) {
-                    case "rep_hero":
-                    case "rep_myhero":
-                        return CChar.HERO;
-                    case "rep_monster":
-                    case "rep_myhero_defender":
-                        return CChar.MONSTER;
-                    default:
-                        return null;
-                }
-            }
         }
     });
-    CChar.HERO = 0;
-    CChar.MONSTER = 1;
 
     // Attack position
     var CPositionType = DefineClass({
-        extend: CKey,
-        construct: function(PositionText) {
-            this._sType;
-
-            if (PositionText != null) {
-                this._sType = PositionText;
-            }
-        },
-        methods: {
-            GetType: function() {
-                return this._sType;
-            },
-            compareTo: function(that) {
-                return CompareString(this._sType, that._sType);
-            },
-            toString: function() {
-                return this._sType;
-            }
-        }
+        extend: CTypeKey,
+		construct: function(PositionText){ 
+			CTypeKey.call(this,PositionText);
+		}	
     });
 
-
-    // In-round actions
+    // Action type
     var CActionType = DefineClass({
-        extend: CKey,
+        extend: CTypeKey,
         construct: function(ActionText) {
-            this._sType;
-            this._nKind;
-
-
-            if (ActionText != null) {
-                this._sType = ActionText;
-                this._nKind = CActionType._GetActionKind(ActionText);
-            }
+            CTypeKey.call(this,ActionText);
         },
         methods: {
-            GetType: function() {
-                return this._sType;
-            },
-            GetKind: function() {
-                return this._nKind;
-            },
-            compareTo: function(that) {
-                return CompareString(this._sType, that._sType);
-            },
-            toString: function() {
-                switch (this._nKind) {
-                    case CActionType.ATTACK:
-                        return Local.TextList_AttackType[Local.OrigTextList_AttackActionType.indexOf(this._sType)];
-                    case CActionType.HEAL:
-                        return Local.TextList_HealType;
-                    case CActionType.BUFF:
-                        return Local.TextList_BuffType;
-                    case CActionType.WAIT:
-                        return Local.TextList_WaitType;
-                    default:
-                        return "unknown";
-                }
-            }
-        },
-        statics: {
-            _GetActionKind: function(ActionText) {
-                if (Local.OrigTextList_AttackActionType.indexOf(ActionText) > -1)
-                    return CActionType.ATTACK;
-                if (Local.OrigTextList_HealActionType.indexOf(ActionText) > -1)
-                    return CActionType.HEAL;
-                if (Local.OrigTextList_BuffActionType.indexOf(ActionText) > -1)
-                    return CActionType.BUFF;
-                if (Local.OrigTextList_WaitActionType.indexOf(ActionText) > -1)
-                    return CActionType.WAIT;
-                return CActionType.UNKNOWN;
-            }
+			Init: function() {
+				this._text = 'unknown';
+				if (Local.OrigTextList_AttackActionType.indexOf(this._sType) > -1){
+                    this._nKind = CActionType.ATTACK;
+					this.setText(Local.TextList_AttackType[Local.OrigTextList_AttackActionType.indexOf(this._sType)]);
+				}
+                else if (Local.OrigTextList_HealActionType.indexOf(this._sType) > -1){
+                    this._nKind = CActionType.HEAL;
+					this.setText(Local.TextList_HealType);
+				}
+                else if (Local.OrigTextList_BuffActionType.indexOf(this._sType) > -1){
+                    this._nKind = CActionType.BUFF;
+					this.setText(Local.TextList_BuffType);
+				}
+                else if (Local.OrigTextList_WaitActionType.indexOf(this._sType) > -1){
+                    this._nKind = CActionType.WAIT;
+					this.setText(Local.TextList_WaitType);
+				}
+			}
         }
     });
     CActionType.ATTACK = 0;
     CActionType.HEAL = 1;
     CActionType.BUFF = 2;
     CActionType.WAIT = 3;
-    CActionType.UNKNOWN = 4;
 
-    var CSkill = DefineClass({
-        extend: CKey,
-        construct: function(HTMLElement) {
-            this._Name;
-            this._Href;
-            this._OnClick;
-
-            if (HTMLElement != null) {
-                this._Name = HTMLElement.firstChild.data;
-                this._Href = HTMLElement.getAttribute("href");
-                this._OnClick = HTMLElement.getAttribute("onclick");
-            }
-        },
-        methods: {
-            compareTo: function(that) {
-                return CompareString(this._Name, that._Name);
-            },
-            toString: function() {
-                if (this._Name != null)
-                    return CreateElementHTML("a", this._Name, ["href", this._Href], ["onclick", this._OnClick]);
-                else
-                    return "";
-            },
-			toText: function() {
-				return this._Name != null? this._Name : "";
-			}
-        }
-    });
-
-
-    var CItem = DefineClass({
-        extend: CKey,
-        construct: function(HTMLElement) {
-            this._Name;
-            this._Href;
-            this._OnClick;
-            this._Class;
-
-            if (HTMLElement != null) {
-                this._Name = HTMLElement.firstChild.data;
-                this._Href = HTMLElement.getAttribute("href");
-                this._OnClick = HTMLElement.getAttribute("onclick");
-                this._Class = HTMLElement.className;
-            }
-        },
-        methods: {
-            compareTo: function(that) {
-                return CompareString(this._Name, that._Name);
-            },
-            toString: function() {
-                if (this._Name != null)
-                    return CreateElementHTML("a", this._Name, ["href", this._Href], ["onclick", this._OnClick], ["class", this._Class]);
-                else
-                    return "";
-            },
- 			toText: function() {
-				return this._Name != null? this._Name : "";
-			}
-       }
-    });
-
-
+	// hit type
     var CHitType = DefineClass({
-        extend: CKey,
+        extend: CTypeKey,
         construct: function(HitClassText) {
-            this._nType;
-
-            if (HitClassText != null) {
-                this._nType = CHitType._GetHitType(HitClassText);
-                if (this._nType === null)
-                    DbgMsg("CHitType(): Unknown type: " + HitClassText);
-            }
+            CTypeKey.call(this,HitClassText);
         },
         methods: {
-            GetType: function() {
-                return this._nType;
-            },
-            compareTo: function(that) {
-                return this._nType - that._nType;
-            },
-            toString: function() {
-                if (this._nType != null)
-                    return Local.TextList_HitType[this._nType];
-                else
-                    return "";
-            }
-        },
-        statics: {
-            _GetHitType: function(Class) {
-                switch (Class) {
+            Init: function() {
+                switch (this._sType) {
                     case "rep_miss":
-                        return CHitType.MISS;
+                        this._nKind = CHitType.MISS;
+						break;
                     case "rep_hit":
-                        return CHitType.HIT;
+                        this._nKind = CHitType.HIT;
+						break;
                     case "rep_hit_good":
-                        return CHitType.GOOD;
+                        this._nKind = CHitType.GOOD;
+						break;
                     case "rep_hit_crit":
-                        return CHitType.CRIT;
+                        this._nKind = CHitType.CRIT;
+						break;
                     default:
-                        return null;
+                        this._nKind = CKey.UNKNOWN;
                 }
+                if (this._nKind != CKey.UNKNOWN)
+                    this.setText(Local.TextList_HitType[this._nKind]);
+                else
+                    this.setText('');
+				
+			},
+            compareTo: function(that) {
+                return this._nKind - that._nKind;
             }
         }
     });
@@ -1355,70 +1266,136 @@
 
     // heal type
     var CHealType = DefineClass({
-        extend: CKey,
+        extend: CTypeKey,
         construct: function(HealText) {
-            this._sType;
-
-            if (HealText != null) {
-                this._sType = HealText;
-            }
+            CTypeKey.call(this,HealText);
         },
         methods: {
-            GetType: function() {
-                return this._sType;
-            },
-            compareTo: function(that) {
-                return CompareString(this._sType, that._sType);
-            },
-            toString: function() {
-                return this._sType;
-            }
+			Init: function() {
+                switch (this._sType) {
+                    case "HP":
+                        this._nKind = CHealType.HP;
+						break;
+                    case "MP":
+                        this._nKind = CHealType.MP;
+						break;
+                    default:
+                        this._nKind = CKey.UNKNOWN;
+                }
+			}				
         }
     });
+	CHealType.HP = 0;
+	CHealType.MP = 1;
 	
 	// buff type
     var CBuffType = DefineClass({
-        extend: CKey,
+        extend: CTypeKey,
         construct: function(BuffText) {
-            this._sType;
-
-            if (BuffText != null) {
-                this._sType = BuffText;
-            }
-        },
-        methods: {
-            GetType: function() {
-                return this._sType;
-            },
-            compareTo: function(that) {
-                return CompareString(this._sType, that._sType);
-            },
-            toString: function() {
-                return this._sType;
-            }
+            CTypeKey.call(this,BuffText);
         }
     });
 
     // Damage Type
     var CDamageType = DefineClass({
-        extend: CKey,
+        extend: CTypeKey,
         construct: function(DamageTypeText) {
-            this._sType;
+            CTypeKey.call(this,DamageTypeText);
+        },
+        methods: {
+            Init: function() {
+                this.setText(this._sType.replace('伤害',''));
+            }
+        }
+    });
 
-            if (DamageTypeText != null) {
-                this._sType = DamageTypeText;
+    var CElementKey = DefineClass({
+        extend: CKey,
+        construct: function(HTMLElement) {
+            this._Name = '';
+            this._Href;
+            this._OnClick;
+            this._Class;
+            this._nKind = CKey.UNKNOWN;
+
+            if (HTMLElement != null) {
+                this._Name = HTMLElement.firstChild.data;
+                this._Href = '#';
+                this._OnClick = HTMLElement.getAttribute("onclick");
+                this._Class = HTMLElement.className;
+				this.Init();
             }
         },
         methods: {
-            GetType: function() {
-                return this._sType;
+			Init: function(){},
+			GetKind: function() {
+                return this._nKind;
             },
             compareTo: function(that) {
-                return CompareString(this._sType, that._sType);
+                var result = this._nKind - that._nKind;
+                if (result !== 0)
+                    return result;
+                return CompareString(this._Name, that._Name);
             },
-            toString: function() {
-                return this._sType.replace('伤害','');
-            }
+            toHTMLNode: function() {
+                if (this._Name != null)
+				{
+					var ret = document.createElement('A');
+					var name = document.createTextNode(this._Name);
+					ret.appendChild(name);
+					ret.href='#';
+					ret.setAttribute("onclick", this._OnClick);
+					if(this._Class)
+						ret.className = this._Class;
+                    return ret;
+				}
+                else
+                    return document.createTextNode('');
+            },
+			toText: function() {
+				return this._Name;
+			}
+        }
+    });
+
+    var CChar = DefineClass({
+        extend: CElementKey,
+        construct: function(HTMLElement) {
+			CElementKey.call(this,HTMLElement);
+        },
+        methods: {
+			Init: function() {
+                switch (this._Class) {
+                    case "rep_hero":
+                    case "rep_myhero":
+                        this._nKind = CChar.HERO;
+						break;
+                    case "rep_monster":
+                    case "rep_myhero_defender":
+                        this._nKind = CChar.MONSTER;
+						break;
+                    default:
+                        this._nKind = CKey.UNKNOWN;
+                }
+			}
+        }
+    });
+    CChar.HERO = 0;
+    CChar.MONSTER = 1;
+
+
+    var CSkill = DefineClass({
+        extend: CElementKey,
+        construct: function(HTMLElement) {
+			CElementKey.call(this,HTMLElement);
+        }
+    });
+
+
+    var CItem = DefineClass({
+        extend: CElementKey,
+        construct: function(HTMLElement) {
+			CElementKey.call(this,HTMLElement);
         }
     });
 
@@ -1433,7 +1410,7 @@
 
             if (HTMLElement != null) {
                 var Str;
-                if (HTMLElement.nodeType != 3) {
+                if (HTMLElement.nodeType != Node.TEXT_NODE) {
                     Str = HTMLElement.getAttribute("onmouseover");
                     // \1	basic damage
                     var Patt_BasicDamage = Local.Pattern_BasicDamage;
@@ -1483,18 +1460,18 @@
             compareTo: function(that) {
                 return this._nBasicDmg - that._nBasicDmg;
             },
-            toString: function() {
-                if (this._sType != null) {
-                    var Str = String(this._nBasicDmg);
+			toHTMLNode: function() {
+                var Str = '';
+				if (this._sType != null) {
+                    Str = String(this._nBasicDmg);
                     if (this._nArmor > 0)
                         Str += " - " + this._nArmor + " -> " + this._nActualDmg;
                     else if (this._nBasicDmg !== this._nActualDmg)
                         Str += " -> " + this._nActualDmg;
                     Str += " " + this._sType;
-                    return Str;
-                } else
-                    return "";
-            }
+                }
+				document.createTextNode(Str);
+			}
         }
     });
 
@@ -1516,7 +1493,7 @@
         },
         methods: {
             GetLength: function() {
-                return this._gValue.length;
+                return document.createTextNode(this._gValue.length);
             },
             Calculate: function() {},
             push: function(ActiveRow,Value) {
@@ -1529,31 +1506,37 @@
             compareTo: function(that) {
                 return this._nAvgValue - that._nAvgValue;
             },
-            AvgValueStr: function() {
-                return String(this._nAvgValue);
+            AvgValue: function() {
+                return this.getNode(this._nAvgValue);
             },
-            MaxValueStr: function() {
-                return String(this._nMaxValue);
+            MaxValue: function() {
+                return this.getNode(this._nMaxValue);
             },
-            MinValueStr: function() {
-                return String(this._nMinValue);
+            MinValue: function() {
+                return this.getNode(this._nMinValue);
             },
-            STDValueStr: function() {
-                return String(this._nSTDValue);
+            STDValue: function() {
+                return this.getNode(this._nSTDValue);
             },
 			ActiveValue: function() {
                 return this._ActiveValue;
             },
-            toString: function() {
-				return this._nValue.join(", ");
-            }
+			toHTMLNode: function() {
+				var ret = document.createElement("span");
+				ret.innerHTML = this._nValue.join(", "); 
+				return ret;
+			},
+			getNode: function(data)
+			{
+				return document.createTextNode(String(data));
+			}
         }
     });
 
     var CVLString = DefineClass({
         extend: CValueList,
         construct: function() {
-            this.superclass();
+            CValueList.call(this);
         },
         methods: {
             Calculate: function() {
@@ -1571,7 +1554,7 @@
     var CVLNumber = DefineClass({
         extend: CValueList,
         construct: function() {
-            this.superclass();
+            CValueList.call(this);
         },
         methods: {
             Calculate: function() {
@@ -1592,10 +1575,14 @@
     var CVLPairNumber = DefineClass({
         extend: CValueList,
         construct: function() {
-            this.superclass();
+            CValueList.call(this);
         },
         methods: {
             Calculate: function() {
+				var cData = this.setPair();
+				this.doCalculate(cData[0],cData[1],cData[2]);
+            },
+			setPair: function(){
                 var nTotalValue = [0, 0];
 
                 var gValueZero = [];
@@ -1607,7 +1594,9 @@
                     nTotalValue[0] += theValue[0];
                     nTotalValue[1] += theValue[1];
                 };
-
+				return [nTotalValue,gValueZero,gValueFirst];
+			},
+			doCalculate: function(nTotalValue,gValueZero,gValueFirst){
                 this._nAvgValue = new Array(2);
                 this._nAvgValue[0] = Number((nTotalValue[0] / this._gValue.length).toFixed(2));
                 this._nAvgValue[1] = Number((nTotalValue[1] / this._gValue.length).toFixed(2));
@@ -1620,26 +1609,26 @@
                 this._nSTDValue = new Array(2);
                 this._nSTDValue[0] = getSTD(gValueZero);
                 this._nSTDValue[1] = getSTD(gValueFirst);
-            },
+			},				
             compareTo: function(that) {
                 if (this._nAvgValue[0] !== 0 || that._nAvgValue[0] !== 0)
                     return this._nAvgValue[0] - that._nAvgValue[0];
                 else
                     return this._nAvgValue[1] - that._nAvgValue[1];
             },
-            AvgValueStr: function() {
-                return CVLPairNumber._GetString(this._nAvgValue);
+            AvgValue: function() {
+                return this.getNode(this._nAvgValue);
             },
-            MaxValueStr: function() {
-                return CVLPairNumber._GetString(this._nMaxValue);
+            MaxValue: function() {
+                return this.getNode(this._nMaxValue);
             },
-            MinValueStr: function() {
-                return CVLPairNumber._GetString(this._nMinValue);
+            MinValue: function() {
+                return this.getNode(this._nMinValue);
             },
-            STDValueStr: function() {
-                return CVLPairNumber._GetString(this._nSTDValue);
+            STDValue: function() {
+                return this.getNode(this._nSTDValue);
             },
-            toString: function() {
+            toHTMLNode: function() {
                 var Str = "";
                 for (var i = 0; i < this._nValue.length; ++i) {
                     var theValue = this._nValue[i];
@@ -1649,17 +1638,18 @@
                     if (i < this._gValue.length - 1)
                         Str += ", ";
                 }
-                return Str;
-            }
-        },
-        statics: {
-            _GetString: function(data) {
-                var id = data[0] + "_" + data[1];
-				return '<table class="pair_value" id="' + id + '"><tr><td>' +
-                    ((data[0] !== 0) ? String(data[0]) : '') +
-                    '</td><td>' +
-                    ((data[1] !== 0) ? String(data[1]) : '') +
-                    '</td></tr></table>';
+                return document.createTextNode(Str);
+            },
+			getNode: function(data) {
+				var table = document.createElement('table');
+				table.className = "pair_value";
+				table.id = data[0] + "_" + data[1];
+				var row = table.insertRow(0);
+				var cell1 = row.insertCell(0);
+				var cell2 = row.insertCell(1);
+				cell1.innerHTML = String(data[0]);
+				cell2.innerHTML = String(data[1]);
+				return table;
             }
         }
     });
@@ -1667,12 +1657,12 @@
 
     // value: An Array of CDamage
     var CVLDamage = DefineClass({
-        extend: CValueList,
+        extend: CVLPairNumber,
         construct: function() {
-            this.superclass();
+            CVLPairNumber.call(this);
         },
         methods: {
-            Calculate: function() {
+            setPair: function(){
                 var nTotalValue = [0, 0];
                 var gValueBasic = [];
                 var gValueActual = [];
@@ -1692,35 +1682,9 @@
                     gValueBasic.push(nSumOneAtkValue[0]);
                     gValueActual.push(nSumOneAtkValue[1]);
                 }
-                this._nAvgValue = new Array(2);
-                this._nAvgValue[0] = Number((nTotalValue[0] / this._gValue.length).toFixed(2));
-                this._nAvgValue[1] = Number((nTotalValue[1] / this._gValue.length).toFixed(2));
-                this._nMaxValue = new Array(2);
-                this._nMaxValue[0] = getMax(gValueBasic);
-                this._nMaxValue[1] = getMax(gValueActual);
-                this._nMinValue = new Array(2);
-                this._nMinValue[0] = getMin(gValueBasic);
-                this._nMinValue[1] = getMin(gValueActual);
-                this._nSTDValue = new Array(2);
-                this._nSTDValue[0] = getSTD(gValueBasic);
-                this._nSTDValue[1] = getSTD(gValueActual);
-            },
-            compareTo: function(that) {
-                return this._nAvgValue[1] - that._nAvgValue[1];
-            },
-            AvgValueStr: function() {
-                return CVLDamage._GetString(this._nAvgValue);
-            },
-            MaxValueStr: function() {
-                return CVLDamage._GetString(this._nMaxValue);
-            },
-            MinValueStr: function() {
-                return CVLDamage._GetString(this._nMinValue);
-            },
-            STDValueStr: function() {
-                return CVLDamage._GetString(this._nSTDValue);
-            },
-            toString: function() {
+				return [nTotalValue,gValueBasic,gValueActual];
+			},
+            toHTMLNode: function() {
                 var Str = "";
                 for (var i = 0; i < this._gValue.length; ++i) {
                     var nTotalValue = [0, 0];
@@ -1736,15 +1700,7 @@
                     if (i < this._nValue.length - 1)
                         Str += ", ";
                 }
-                return Str;
-            }
-        },
-        statics: {
-            _GetString: function(data) {
-				var id = data[1] + "_" + data[0];
-				return '<table class="pair_value" id="' + id + '"><tr><td>' +
-                    data[1] + '</td><td>' +
-                    data[0] + '</td></tr></table>';
+                return document.createTextNode(Str);
             }
         }
     });
@@ -1768,23 +1724,31 @@
             switch (this.Name) {
                 case Local.Text_Table_AvgRoll:
                 case Local.Text_Table_ItemDamagePoints:
-                    return info.ValueList.AvgValueStr();
+                    return info.ValueList.AvgValue();
                 case Local.Text_Table_Times:
                     return info.ValueList.GetLength();
                 case Local.Text_Table_MaxRoll:
-                    return info.ValueList.MaxValueStr();
+                    return info.ValueList.MaxValue();
                 case Local.Text_Table_MinRoll:
-                    return info.ValueList.MinValueStr();
+                    return info.ValueList.MinValue();
                 case Local.Text_Table_STDRoll:
-                    return info.ValueList.STDValueStr();
+                    return info.ValueList.STDValue();
                 case Local.Text_Table_RollList:
-                    //return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show], ["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
-                    return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show],["data",info.ValueList.toString()]);
+                    var ret = document.createElement("input");
+					ret.type = "button";
+					ret.className = "button";
+					ret.value = Local.Text_Button_Show;
+					ret.setAttribute("data",info.ValueList.toString());
+					return ret;
                 case Local.Text_Table_DetailList:
-                    //return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show], ["onclick", 'alert(&quot;' + info.ValueList.toString() + '&quot;);']);
-                    return CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["value", Local.Text_Button_Show],["data",""]);
+                    var ret = document.createElement("input");
+					ret.type = "button";
+					ret.className = "button";
+					ret.value = Local.Text_Button_Show;
+					ret.setAttribute("data","");
+					return ret;
                 default:
-                    return this.Name;
+                    return document.createTextNode(this.Name);
             }
         }
     }
@@ -1909,7 +1873,7 @@
 						var filter = value.toText();
 						if(filters[j].indexOf(filter) <= -1)
 							filters[j].push(filter);
-						gBodyCellContent.push(new CCellContent(value,1,true,filters[j].indexOf(filter),this._gInfo[i].ValueList.ActiveValue()));
+						gBodyCellContent.push(new CCellContent(value.toHTMLNode(),1,true,filters[j].indexOf(filter),this._gInfo[i].ValueList.ActiveValue()));
 					}
                     for (var j = 0; j < this._gValueName.length; ++j)
                         gBodyCellContent.push(new CCellContent(this._gValueName[j].getValue(this._gInfo[i]),1,true,-1,this._gInfo[i].ValueList.ActiveValue()));
@@ -1939,7 +1903,7 @@
                     this._Table.SetBodyCellContents.apply(this._Table, tablecontent[i]);
             },
             SaveInfo: function(Info) {},
-            Output: function(isExport) {
+            Show: function(isExport) {
                 if (this._gInfo.length > 0) {
                     this.CalculateValue();
                     this.sort();
@@ -1947,12 +1911,26 @@
                 }
                 return "";
             },
-            Show: function() {
-                return this.Output(false);
-            },
-            Export: function() {
-                return this.Output(true);
-            },
+			getTab: function(isExport) {
+				function FactoryTabClick(Id) {
+					return function() {
+						CStat.OnTabClick(Id);
+					};
+				}
+				var tab = document.createElement('li');
+				tab.id = 'tab_' + this._Id;
+				tab.className = 'not_selected';
+				var a = document.createElement('A');
+				var name = document.createTextNode(this._Title);
+				a.appendChild(name);
+				a.href='#';
+				if(isExport)
+					a.setAttribute("onclick", "st('" + this._Id + "');");
+				else
+					a.addEventListener("click", FactoryTabClick(this._Id), false);
+				tab.appendChild(a);
+				return tab;
+			},
             // Call this function when read all data, and before sort and export data
             CalculateValue: function() {
                 for (var i = 0; i < this._gInfo.length; ++i)
@@ -1981,14 +1959,8 @@
                 this._SetTableBodyCellContents();
                 return this._Table.CreateHTML();
             },
-            GetTableHTML: function() {
-                return this._Table.GetHTML();
-            },
-            AddEvents: function() {
-                if (this._Table != null) this._Table.AddEvents();
-            },
             push: function(ActiveRow, gKey, Value) {
- 				for (var i = 0; i < this._gInfo.length; ++i) {
+				for (var i = 0; i < this._gInfo.length; ++i) {
                     if (this._CompareKeys(this._gInfo[i].gKey, gKey) === 0) {
                         this._gInfo[i].ValueList.push(ActiveRow,Value);
                         return this._gInfo.length;
@@ -2802,11 +2774,8 @@
 
         // Add buttons
         var KeyButton = AddButtonBesideDisabledButton(
-  [Local.OrigText_Button_DungeonDetails, Local.Text_Button_ExtraStat, OnCountStat], [Local.OrigText_Button_DungeonStat, Local.Text_Button_EntireStat, OnCountEntireStat], [Local.OrigText_Button_DuelDetails, Local.Text_Button_ExtraStat, OnCountStat]);
+			[Local.OrigText_Button_DungeonDetails, Local.Text_Button_ExtraStat, OnCountStat], [Local.OrigText_Button_DungeonStat, Local.Text_Button_EntireStat, OnCountEntireStat], [Local.OrigText_Button_DuelDetails, Local.Text_Button_ExtraStat, OnCountStat]);
         if (KeyButton === null) return;
-
-        // Stat initialization
-        Stat = CreateStat(node_after(KeyButton.parentNode), false);
     }
 
 
@@ -2847,7 +2816,7 @@
                 return;
             else
                 this.className = "button_disabled";
-
+			Stat = CreateStat(node_after(this.parentNode), false);
             Stat.nTotalPages = 1;
             ReadPage(document, true);
         } catch (e) {
@@ -2862,7 +2831,7 @@
                 return;
             else
                 this.className = "button_disabled";
-
+			Stat = CreateStat(node_after(this.parentNode), false);
             CountEntireStat();
         } catch (e) {
             alert("OnCountEntireStat(): " + e);
@@ -2925,7 +2894,7 @@
 
         CountStat(page, (nCurrRepPage === nMaxRepPage));
         if (++Stat.nReadPages >= Stat.nTotalPages)
-            Stat.Show();
+            Stat.Show(false);
         else
             Stat.ShowProgress();
     }
@@ -3158,7 +3127,7 @@
 				if(includeData)
 				{
 					Stat.setNode(node_before(thepage.getElementsByTagName("h2")[0].nextSibling));				
-					Stat.Export();
+					Stat.Show(true);
 				}
 				gZip.file(theFileName, handlePage(thepage,nLevel));
 			}
@@ -3185,7 +3154,7 @@
                     if(includeData)
 					{
 						StatEntire.setNode(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling));
-						StatEntire.Export();
+						StatEntire.Show(true);
 					}
                     gZip.file(gCurrentReport.value + "/statistics.html", handlePage(gResponseDiv));
                     GetItemPage();
@@ -3348,6 +3317,7 @@
 				scriptStr +='cf = ' + CTable.OnChangeFilter.toString() + '\n';
 				scriptStr +='co = ' + CTable.OnChangeOrder.toString() + '\n';
 				scriptStr +='sd = ' + CTable.OnShowDetail.toString() + '\n';
+				scriptStr +='st = ' + CStat.OnTabClick.toString() + '\n';
 			}
 			script.firstChild.data = scriptStr;										
 		}
