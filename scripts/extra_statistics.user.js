@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.10
+// @version			2.11
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -1105,9 +1105,9 @@
 						if(theRow)
 						{
 							table.appendChild(theRow);
+							table.appendChild(c.cloneNode(true));
 						}
 					}
-					table.appendChild(c.cloneNode(true));
 				}
 			}			
 			if(row.style.display == '')
@@ -1583,6 +1583,7 @@
             },
             Calculate: function() {},
             push: function(ActiveRow,Value) {
+				debugger;
 				this._nValue.push(Value);
 				if(this._ActiveValue.indexOf(ActiveRow) <= -1)
 					this._ActiveValue.push(ActiveRow);
@@ -1645,7 +1646,15 @@
             },
 			compareTo: function(that) {
                 return 0;
-            }
+            },
+			toHTMLNode: function() {
+				var table = document.createElement('table');
+				table.style.width='100%';
+				var cell = table.insertRow(-1).insertCell(-1);
+				cell.colSpan="3";
+				cell.style.textAlign = 'center';
+				return table;
+			}
         }
     });
 	
@@ -1829,18 +1838,12 @@
                 case Local.Text_Table_STDRoll:
                     return value.STDValue();
                 case Local.Text_Table_RollList:
-                    var ret = document.createElement("input");
-					ret.type = "button";
-					ret.className = "button";
-					ret.value = Local.Text_Button_Show;
-					ret.setAttribute("data",value.toString());
-					return ret;
                 case Local.Text_Table_DetailList:
                     var ret = document.createElement("input");
 					ret.type = "button";
 					ret.className = "button";
 					ret.value = Local.Text_Button_Show;
-					ret.setAttribute("data","");
+					ret.setAttribute("data",value.toString());
 					return ret;
                 default:
                     return document.createTextNode(this.Name);
@@ -2216,7 +2219,34 @@
         }
     });
 
+    var CILDamaged = DefineClass({
+        extend: CInfoList,
+        construct: function(CValueList) {
+			var infospan = document.createElement("span");
+			infospan.className = "pair_value";
+			infospan.innerHTML = '<span>ROLL点</span>&nbsp;&nbsp;<span>实际值</span>';
 
+			this.superclass(CValueList, Local.Text_Table_Damaged, "stat_damaged", [CKeyType.Char(), CKeyType.AttackType(), CKeyType.Skill(), CKeyType.Item(), CKeyType.DamageType()],
+                CKeyType.ValueName(infospan));
+        },
+        methods: {
+            SaveInfo: function(Info) {
+                if (Info.Active.ActionType.GetKind() === CActionType.ATTACK) {
+                    for (var i = 0; i < Info.gPassive.length; ++i) {
+                        if (Info.gPassive[i].gDamage.length > 0) {
+                            //var damage = [];
+                            //damage.push(Info.gPassive[i].gDamage);
+                            for (var index = 0; index < Info.gPassive[i].gDamage.length; index++) {
+                                this.push(Info.ActiveRow,[Info.gPassive[i].Char, Info.Active.ActionType, Info.Active.Skill, Info.Active.gItem, Info.gPassive[i].gDamage[index].GetDamageType()], [Info.gPassive[i].gDamage[index]]);
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    });
+	
     var CILHeal = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
@@ -2776,7 +2806,9 @@
         Text_Table_Defence: ["Defence",
         "防御骰"],
         Text_Table_Damage: ["Damage",
-        "伤害"],
+        "造成伤害"],
+        Text_Table_Damaged: ["Damage",
+        "受到伤害"],
         Text_Table_DamageType: ["Damage Type",
         "伤害类型"],
         Text_Table_HealType: ["Heal Type",
@@ -2832,7 +2864,7 @@
     var Style = "div.stat_all {font-size:14px;} " +
 	     "div.stat_header {margin:1em auto 0.5em auto;} " +
         "span.stat_title {margin: auto 1em auto 0em; font-size:20px; font-weight:bold; color:#FFF;} span.clickable {cursor:pointer;} " +
-        "span.pair_value {width:100%; font-size:14px;} span.pair_value span {width:50%; min-width:3em; text-align:right; color:#F8A400;} span.pair_value span + span {color:#00CC00;} " +
+        "span.pair_value {width:100%; font-size:12px;} span.pair_value span {width:50%; min-width:3em; text-align:right; color:#F8A400;} span.pair_value span + span {color:#00CC00;} " +
         "table[hide] {display:none;} " +
         "table.pair_value {width:100%;} table.pair_value td {width:50%; min-width:3em; text-align:right; color:#F8A400;} table.pair_value td + td {color:#00CC00;} ";
 
@@ -2868,11 +2900,12 @@
         theStat.RegInfoList(new CILAttackRoll(CVLNumber, isExport));
         theStat.RegInfoList(new CILDefenceRoll(CVLNumber, isExport));
         theStat.RegInfoList(new CILDamage(CVLDamage, isExport));
+        theStat.RegInfoList(new CILDamaged(CVLDamage, isExport));
         theStat.RegInfoList(new CILHeal(CVLNumber, isExport));
         theStat.RegInfoList(new CILHealed(CVLNumber, isExport));
         theStat.RegInfoList(new CILBuff(CVLString, isExport));
-        //theStat.RegInfoList(new CILBuffed(CVLString, isExport));
-        theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
+        theStat.RegInfoList(new CILBuffed(CVLString, isExport));
+        //theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
         return theStat;
     }
 
