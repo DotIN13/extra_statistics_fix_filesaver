@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.11
+// @version			2.12
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -607,7 +607,7 @@
 	
     // Type: a string that is the property name of CTable::ContentAttrs
     CTable.prototype.SetBodyCellContentTypes = function( /* Type1, Type2, ... */ ) {
-        for (var i = 0; i < this._nColumns; ++i)
+		for (var i = 0; i < this._nColumns; ++i)
             this._BodyCellContentTypes[i] =
             arguments[i] != null ? CTable._ContentAttrs[arguments[i]] : "";
     };
@@ -640,7 +640,6 @@
                 CTable.OnShowDetail(rowId,activeRows);
             };
 		}
-		
 		var tableid = "table_" + this._Id;
 		var outputDiv = document.createElement('div');
 		outputDiv.id = this._Id;
@@ -682,23 +681,42 @@
 			infospan.id = tableid + '_orderInfo_' + i;
 			infospan.innerHTML = '<span></span><span></span>';
 			thSpan.appendChild(infospan);
+			var canTitleOrder = true;
 			if(legend)
 			{
 				infospan.className = legend.className;
-				thSpan.innerHTML = thSpan.innerHTML + '<br />';
-				thSpan.appendChild(legend);
-				var legends = legend.getElementsByTagName('span');
-				for(var li =0 ; li < legends.length;li++)
+				if( i > 0)
 				{
-					var l = legends[li];
-					l.className = "clickable";
-					if(this._isExport)
-						l.setAttribute('onclick', "co('" + tableid + "'," + i +"," + li + ");");
-					else
-						l.addEventListener("click", FactorySort(tableid,i,li), false);
+					thSpan.innerHTML = thSpan.innerHTML + '<br />';
+					thSpan.appendChild(legend);
+					var legends = legend.getElementsByTagName('span');
+					for(var li =0 ; li < legends.length;li++)
+					{
+						var l = legends[li];
+						l.className = "clickable";
+						if(this._isExport)
+							l.setAttribute('onclick', "co('" + tableid + "'," + i +"," + li + ");");
+						else
+							l.addEventListener("click", FactorySort(tableid,i,li), false);
+					}
+					canTitleOrder = false;
+				}
+				else
+				{
+					th.appendChild(legend);
+					var checkboxs = legend.getElementsByTagName('input');
+					for(var ti = 0; ti < checkboxs.length; ti++)
+					{
+						var c = checkboxs[ti];
+						c.id = tableid + '_checkbox_' + i + '_' + ti;
+						if(this._isExport)
+							c.setAttribute('onclick',"cf('" + tableid + "','" + this._filterId + "');");
+						else
+							c.addEventListener("click", FactoryFilter(tableid,this._filterId), false);						
+					}
 				}
 			}
-			else
+			if(canTitleOrder);
 			{
 				thSpan.className = "clickable";
 				if(this._isExport)
@@ -741,7 +759,7 @@
 					{
 						var input = document.createElement("input");
 						input.type = "text";
-						input.size = 8;
+						input.size = 6;
 						cell.appendChild(input);
 					}
 				}
@@ -751,6 +769,7 @@
 			searchButton.id = this._filterId + "_button";
 			searchButton.value="查询";
 			searchButton.className ="button";
+			searchButton.style.textAlign = 'center';
 			if(this._isExport)
 				searchButton.setAttribute('onclick', "cf('" + tableid + "','" + this._filterId + "');");
 			else
@@ -860,6 +879,10 @@
 			var showIds = [];
 			var refilter = 0;
 			
+			var showHero_0 = document.getElementById(tableId + "_checkbox_0_0");
+			var showHero_1 = document.getElementById(tableId + "_checkbox_0_1");
+			var showHero = [showHero_0.checked,showHero_1.checked];
+			
 			for(var i = 0; i< filterRow.cells.length; i++)
 			{
 				var cell = filterRow.cells[i];
@@ -895,15 +918,22 @@
 				var rowInfo = Table.rows[i+1];
 				var rowIds = row.id.split(",");
 				var show = true;
-				for(var fi =0; fi<stringfilters.length;fi++)
+				
+				var hero = row.cells[0].getElementsByTagName('a')[0];
+				var heroKind = hero.getAttribute("kind");
+				show = showHero[heroKind];
+				if(show)
 				{
-					var sfilter = stringfilters[fi];
-					if(!sfilter)
-						continue;
-					if(sfilter != fi + "_all" && sfilter != rowIds[fi])
+					for(var fi =0; fi<stringfilters.length;fi++)
 					{
-						show = false;
-						break;
+						var sfilter = stringfilters[fi];
+						if(!sfilter)
+							continue;
+						if(sfilter != fi + "_all" && sfilter != rowIds[fi])
+						{
+							show = false;
+							break;
+						}
 					}
 				}
 				if(show)
@@ -989,7 +1019,6 @@
 						continue;
 					for(var i = sfilter.options.length -1; i>0;i--)
 						sfilter.remove(i);
-					debugger;
 					for(var i = 0; i< sfilterorg.options.length; i++){
 						var opt = sfilterorg.options[i];
 						if(showIds[fi].indexOf(opt.value) > -1){
@@ -1091,6 +1120,16 @@
 		activeRows = activeRows||[];
 		if(cell)
 		{
+			if(row.style.display == '')
+			{
+				button.value = '显示';
+				row.style.display = 'none';
+			}
+			else
+			{
+				button.value = '隐藏';
+				row.style.display = '';
+			}
 			var table = cell.getElementsByTagName('table')[0];
 			if(table.rows.length <= 1)
 			{
@@ -1110,16 +1149,7 @@
 					}
 				}
 			}			
-			if(row.style.display == '')
-			{
-				button.value = '显示';
-				row.style.display = 'none';
-			}
-			else
-			{
-				button.value = '隐藏';
-				row.style.display = '';
-			}
+
 		}
 		
 	}
@@ -1431,6 +1461,7 @@
 					ret.appendChild(name);
 					ret.href='#';
 					ret.setAttribute("onclick", this._OnClick);
+					ret.setAttribute('kind',this._nKind);
 					if(this._Class)
 						ret.className = this._Class;
                     return ret;
@@ -1583,7 +1614,6 @@
             },
             Calculate: function() {},
             push: function(ActiveRow,Value) {
-				debugger;
 				this._nValue.push(Value);
 				if(this._ActiveValue.indexOf(ActiveRow) <= -1)
 					this._ActiveValue.push(ActiveRow);
@@ -1855,8 +1885,8 @@
         return new CKeyType(Local.Text_Table_AvgRoll, "number",legend);
     }
 
-    CKeyType.Times = function() {
-        return new CKeyType(Local.Text_Table_Times, "number");
+    CKeyType.Times = function(legend) {
+        return new CKeyType(Local.Text_Table_Times, "number",legend);
     }
 
     CKeyType.MaxRoll = function(legend) {
@@ -1871,60 +1901,81 @@
         return new CKeyType(Local.Text_Table_STDRoll, "number",legend);
     }
 
-    CKeyType.RollList = function() {
-        return new CKeyType(Local.Text_Table_RollList, "button");
+    CKeyType.RollList = function(legend) {
+        return new CKeyType(Local.Text_Table_RollList, "button",legend);
     }
 
-    CKeyType.DetailList = function() {
-        return new CKeyType(Local.Text_Table_DetailList, "button");
+    CKeyType.DetailList = function(legend) {
+        return new CKeyType(Local.Text_Table_DetailList, "button",legend);
     }
 
-    CKeyType.Char = function() {
-        return new CKeyType(Local.Text_Table_Char, "string");
+    CKeyType.Char = function(legend) {
+        var _legend = legend;
+		if(!legend){
+			var info = document.createElement("table");
+			info.className = 'pair_hero';
+			var hero = info.insertRow(-1).insertCell(-1);
+			var check = document.createElement("INPUT");
+			check.type = 'checkbox';
+			check.value = CChar.HERO;
+			check.checked = true;
+			hero.appendChild(check);
+			hero.appendChild(document.createTextNode('英雄'));
+			var npc = info.rows[0].insertCell(-1);
+			check = document.createElement("INPUT");
+			check.type = 'checkbox';
+			check.value = CChar.MONSTER;
+			check.checked = true;
+			npc.appendChild(check);
+			npc.appendChild(document.createTextNode('对手'));
+			_legend = info;
+		}
+		
+		return new CKeyType(Local.Text_Table_Char, "string",_legend);
     }
 	
-	CKeyType.ProviderChar = function() {
-        return new CKeyType(Local.Text_Table_Buffer, "string");
+	CKeyType.ProviderChar = function(legend) {
+        return new CKeyType(Local.Text_Table_Buffer, "string",legend);
     }
 
-	CKeyType.ReceiverChar = function() {
-        return new CKeyType(Local.Text_Table_BuffeReceiver, "string");
+	CKeyType.ReceiverChar = function(legend) {
+        return new CKeyType(Local.Text_Table_BuffeReceiver, "string",legend);
     }
 
-    CKeyType.AttackType = function() {
-        return new CKeyType(Local.Text_Table_AttackType, "string");
+    CKeyType.AttackType = function(legend) {
+        return new CKeyType(Local.Text_Table_AttackType, "string",legend);
     }
 
-    CKeyType.Skill = function() {
-        return new CKeyType(Local.Text_Table_Skill, "string");
+    CKeyType.Skill = function(legend) {
+        return new CKeyType(Local.Text_Table_Skill, "string",legend);
     }
 
-    CKeyType.Item = function() {
-        return new CKeyType(Local.Text_Table_Item, "string");
+    CKeyType.Item = function(legend) {
+        return new CKeyType(Local.Text_Table_Item, "string",legend);
     }
 
-    CKeyType.Position = function() {
-        return new CKeyType(Local.Text_Table_Position, "string");
+    CKeyType.Position = function(legend) {
+        return new CKeyType(Local.Text_Table_Position, "string",legend);
     }
 
-    CKeyType.HealType = function() {
-        return new CKeyType(Local.Text_Table_HealType, "string");
+    CKeyType.HealType = function(legend) {
+        return new CKeyType(Local.Text_Table_HealType, "string",legend);
     }
 
-    CKeyType.BuffType = function() {
-        return new CKeyType(Local.Text_Table_BuffType, "string");
+    CKeyType.BuffType = function(legend) {
+        return new CKeyType(Local.Text_Table_BuffType, "string",legend);
     }
 	
-    CKeyType.DamageType = function() {
-        return new CKeyType(Local.Text_Table_DamageType, "string");
+    CKeyType.DamageType = function(legend) {
+        return new CKeyType(Local.Text_Table_DamageType, "string",legend);
     }
 
-    CKeyType.DefenceType = function() {
-        return new CKeyType(Local.Text_Table_DefenceType, "string");
+    CKeyType.DefenceType = function(legend) {
+        return new CKeyType(Local.Text_Table_DefenceType, "string",legend);
     }
 
-    CKeyType.ItemDamagePoints = function() {
-        return new CKeyType(Local.Text_Table_ItemDamagePoints, "string");
+    CKeyType.ItemDamagePoints = function(legend) {
+        return new CKeyType(Local.Text_Table_ItemDamagePoints, "string",legend);
     }
 
     CKeyType.ValueName = function(legend) {
@@ -2052,7 +2103,7 @@
                 var gBodyCellContentType = new Array(this._Allkey.length);
                 for (var i = 0; i < this._Allkey.length; ++i) {
                     gHeadCellContent[i] = this._Allkey[i].Name;
-                    gBodyCellContentType[i] = this._Allkey[i].type;
+                    gBodyCellContentType[i] = this._Allkey[i].Type;
 					gHeadCellLegend[i] = this._Allkey[i].legend;
                 }
 
@@ -2865,6 +2916,7 @@
 	     "div.stat_header {margin:1em auto 0.5em auto;} " +
         "span.stat_title {margin: auto 1em auto 0em; font-size:20px; font-weight:bold; color:#FFF;} span.clickable {cursor:pointer;} " +
         "span.pair_value {width:100%; font-size:12px;} span.pair_value span {width:50%; min-width:3em; text-align:right; color:#F8A400;} span.pair_value span + span {color:#00CC00;} " +
+        "table.pair_hero {width:100%; font-size:12px;} table.pair_hero td {width:50%; min-width:3em; text-align:right; color:#00CC00;} table.pair_hero td + td {color:#F8A400;} " +
         "table[hide] {display:none;} " +
         "table.pair_value {width:100%;} table.pair_value td {width:50%; min-width:3em; text-align:right; color:#F8A400;} table.pair_value td + td {color:#00CC00;} ";
 
@@ -2905,7 +2957,7 @@
         theStat.RegInfoList(new CILHealed(CVLNumber, isExport));
         theStat.RegInfoList(new CILBuff(CVLString, isExport));
         theStat.RegInfoList(new CILBuffed(CVLString, isExport));
-        //theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
+        theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
         return theStat;
     }
 
