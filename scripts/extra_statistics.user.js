@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.09
+// @version			2.10
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -574,6 +574,7 @@
 		this._filterId = "filter_" + Id;
         this._nColumns = nColumns;
         this._HeadCellContents = new Array(nColumns);
+        this._HeadCellLegends = new Array(nColumns);
         this._BodyCellContentTypes = new Array(nColumns);
 		this._HeadCellContentFilters = [];
         this._BodyCellContents = [];
@@ -599,6 +600,11 @@
             this._HeadCellContents[i] = arguments[i] != null ? arguments[i] : "";
     };
 
+	CTable.prototype.SetHeadCellLegends = function( /* Content1, Content2, ... */ ) {
+        for (var i = 0; i < this._nColumns; ++i)
+            this._HeadCellLegends[i] = arguments[i] != null ? arguments[i] : "";
+    };
+	
     // Type: a string that is the property name of CTable::ContentAttrs
     CTable.prototype.SetBodyCellContentTypes = function( /* Type1, Type2, ... */ ) {
         for (var i = 0; i < this._nColumns; ++i)
@@ -669,14 +675,37 @@
 			th.setAttribute('order','1');
 			var thSpan = document.createElement("span");
 			thSpan.id =  this._Id + "_col" + i;
-			thSpan.className = "clickable";
-			if(this._isExport)
-				thSpan.setAttribute('onclick', "co('" + tableid + "'," + i +",0);");
-			else
-				thSpan.addEventListener("click", FactorySort(tableid,i,0), false);
 			thSpan.innerHTML = this._HeadCellContents[i];
 			th.appendChild(thSpan);
-			th.appendChild(document.createElement("span"));
+			var legend = this._HeadCellLegends[i];
+			var infospan = document.createElement("span");
+			infospan.id = tableid + '_orderInfo_' + i;
+			infospan.innerHTML = '<span></span><span></span>';
+			thSpan.appendChild(infospan);
+			if(legend)
+			{
+				infospan.className = legend.className;
+				thSpan.innerHTML = thSpan.innerHTML + '<br />';
+				thSpan.appendChild(legend);
+				var legends = legend.getElementsByTagName('span');
+				for(var li =0 ; li < legends.length;li++)
+				{
+					var l = legends[li];
+					l.className = "clickable";
+					if(this._isExport)
+						l.setAttribute('onclick', "co('" + tableid + "'," + i +"," + li + ");");
+					else
+						l.addEventListener("click", FactorySort(tableid,i,li), false);
+				}
+			}
+			else
+			{
+				thSpan.className = "clickable";
+				if(this._isExport)
+					thSpan.setAttribute('onclick', "co('" + tableid + "'," + i +",0);");
+				else
+					thSpan.addEventListener("click", FactorySort(tableid,i,0), false);
+			}
 			trHeader.appendChild(th);
 		}
 		
@@ -692,17 +721,21 @@
 					if(this._HeadCellContentFilters[i] != null)
 					{
 						var filter = this._HeadCellContentFilters[i];
-						var comboxboxid = this._filterId + "_combobox_" + i ;
-						var comboxbox = document.createElement("select");
-						cell.appendChild(comboxbox);
-						comboxbox.id = comboxboxid;
+						var comboboxid = this._filterId + "_combobox_" + i ;
+						var combobox = document.createElement("select");
+						cell.appendChild(combobox);
+						combobox.id = comboboxid;
 						if(this._isExport)
-							comboxbox.setAttribute('onchange',"cf('" + tableid + "','" + this._filterId + "');");
+							combobox.setAttribute('onchange',"cf('" + tableid + "','" + this._filterId + "');");
 						else
-							comboxbox.addEventListener("change", FactoryFilter(tableid,this._filterId), false);
-						comboxbox.options.add( new Option(Local.Text_Table_AllData,i + '_' + 'all'));
+							combobox.addEventListener("change", FactoryFilter(tableid,this._filterId), false);
+						combobox.options.add( new Option(Local.Text_Table_AllData,i + '_' + 'all'));
 						for(var j=0;j<filter.length;j++)
-							comboxbox.options.add( new Option(filter[j],i + '_' + j));
+							combobox.options.add( new Option(filter[j],i + '_' + j));
+						var comboboxOrg = combobox.cloneNode(true);
+						comboboxOrg.id = 'org_' + comboboxid;
+						comboboxOrg.style.display = 'none';
+						cell.appendChild(comboboxOrg);
 					}
 					else
 					{
@@ -730,6 +763,7 @@
 			row.setAttribute('oriorder',i);
 			var rowId = [];
 			var infoRowid = tableid + '_' + i;
+			var infoNode;
             for (var j = 0; j < this._nColumns; ++j) {
 				var rowspan = "";
 				var content = this._BodyCellContents[i][j];
@@ -751,6 +785,8 @@
 							valueNode.setAttribute("onclick", "sd('" + infoRowid + "',['" + content.activeRows.join("','") + "']);");
 						else
 							valueNode.addEventListener("click", FactoryShowDetail(infoRowid ,this._BodyCellContents[i][0].activeRows), false);
+						infoNode = valueNode.getAttribute('data');
+						valueNode.removeAttribute('data');
 					}
 				}
 				rowId.push(j + "_" + this._BodyCellContents[i][j].filterId);
@@ -760,7 +796,11 @@
 			infoRow.className = row.className;
 			infoRow.id = infoRowid;
 			infoRow.style.display = 'none';
-			infoRow.insertCell(-1).colSpan = this._nColumns;
+			var infoCell = infoRow.insertCell(-1);
+			infoCell.colSpan = this._nColumns;
+			if(infoNode){
+				infoCell.innerHTML = infoNode;
+			}
 		}		
 		return outputDiv;
 		//this._HTML = outputDiv.outerHTML;
@@ -814,17 +854,34 @@
             var Table = document.getElementById(tableId);
 			var filterRow = document.getElementById(filterRowId);
 			var stringfilters = [];
+			var orgstringfilters = [];
 			var numberfilters = [];
 			var filterString = "";
+			var showIds = [];
+			var refilter = 0;
+			
 			for(var i = 0; i< filterRow.cells.length; i++)
 			{
 				var cell = filterRow.cells[i];
 				var stringfilter = document.getElementById(filterRow.id + "_combobox_" + i);
+				var orgstringfilter = document.getElementById('org_' + filterRow.id + "_combobox_" + i);
 				var numberfilter = document.getElementById(filterRow.id + "_textbox_" + i);
-				if(stringfilter)
+				if(stringfilter){
 					stringfilters.push(stringfilter.value);
+					refilter += stringfilter.selectedIndex > 0?1:0;
+				}
 				else
 					stringfilters.push(null);
+				if(orgstringfilter){
+					for(var ii = 0, ij = orgstringfilter.options.length; ii < ij; ++ii) {
+						if(orgstringfilter.options[ii].value === stringfilter.value) {
+						   orgstringfilter.selectedIndex = ii;
+						   break;
+						}
+					}
+					orgstringfilters.push([stringfilter,orgstringfilter]);
+					showIds.push([]);
+				}
 				if(numberfilter)
 					numberfilters.push(numberfilter.value);
 				else
@@ -840,10 +897,10 @@
 				var show = true;
 				for(var fi =0; fi<stringfilters.length;fi++)
 				{
-					var sfiler = stringfilters[fi];
-					if(!sfiler)
+					var sfilter = stringfilters[fi];
+					if(!sfilter)
 						continue;
-					if(sfiler != fi + "_all" && sfiler != rowIds[fi])
+					if(sfilter != fi + "_all" && sfilter != rowIds[fi])
 					{
 						show = false;
 						break;
@@ -911,9 +968,38 @@
 					row.className = "row" + index % 2;
 					rowInfo.className = row.className;
 					index++;
+					for(var fi =0; fi<orgstringfilters.length;fi++)
+					{
+						var id = rowIds[fi];
+						if(showIds[fi].indexOf(id) <= -1)
+							showIds[fi].push(id);
+					}
 				}
-				
 			}
+			
+			if(orgstringfilters.length - refilter > 1)
+			{
+				for(var fi =0; fi<orgstringfilters.length;fi++)
+				{
+					var sfilter = orgstringfilters[fi][0];
+					var sfilterorg = orgstringfilters[fi][1];
+					if(!sfilter)
+						continue;
+					if(refilter == 1 && sfilter.selectedIndex > 0)
+						continue;
+					for(var i = sfilter.options.length -1; i>0;i--)
+						sfilter.remove(i);
+					debugger;
+					for(var i = 0; i< sfilterorg.options.length; i++){
+						var opt = sfilterorg.options[i];
+						if(showIds[fi].indexOf(opt.value) > -1){
+							var newopt = new Option(opt.text,opt.value);
+							newopt.selected = opt.selected;
+							sfilter.add(newopt);
+						}
+					}
+				}
+			}			
         } catch (e) {
             alert("CTable.OnChangeFilter(): " + e);
         }
@@ -929,13 +1015,15 @@
 		var order = th.getAttribute("order");
 		for(var i=0; i< ths.length - 1; i++)
 		{
-			var spans = ths[i].getElementsByTagName('span');
-			if(spans && spans.length >=2)
+			
+			var span = document.getElementById(tableId + '_orderInfo_' + i);
+			var spans = span.getElementsByTagName('span');
+			if(spans && spans.length ==2)
 			{
-				if(i != columnIndex)
-					spans[spans.length -1].innerHTML = '';
-				else
-					spans[spans.length -1].innerHTML = order>0?'&#9650;':'&#9660;';
+				spans[0].innerHTML = '';
+				spans[1].innerHTML = '';
+				if(i == columnIndex)
+					spans[numberIndex].innerHTML = order>0?'&#9650;':'&#9660;';
 			}
 		}
 		for(var i = 2;i< Table.rows.length-2;i=i+2)
@@ -1001,28 +1089,26 @@
 		var cell = row.cells[0];
 		var button = row.previousSibling.getElementsByTagName('input')[0];
 		activeRows = activeRows||[];
-		if(cell && activeRows.length > 0)
+		if(cell)
 		{
-			if(cell.innerHTML === "")
-			{	
-				var str= '<table width="100%"><tdoby>';
-				if(button.getAttribute('data'))
+			var table = cell.getElementsByTagName('table')[0];
+			if(table.rows.length <= 1)
+			{
+				if(activeRows.length > 0)
 				{
-					str += '<tr><td colspan="3" align="center">' + button.getAttribute('data') + '</td></tr>';
-					str += '<tr><td colspan="3"><hr/></td></tr>';
-				}
-				for(var i = 0;i<activeRows.length;i++)
-				{
-					var theRow = document.getElementById(activeRows[i]);
-					if(theRow)
+					var c = table.insertRow(-1).insertCell(-1);
+					c.colSpan = '3';
+					c.innerHTML = '<hr/>';
+					for(var i = 0;i<activeRows.length;i++)
 					{
-						str += theRow.outerHTML;			
-						if(i < activeRows.length - 1)
-							str += '<tr><td colspan="3"><hr/></td></tr>';
+						var theRow = document.getElementById(activeRows[i]).cloneNode(true);
+						if(theRow)
+						{
+							table.appendChild(theRow);
+						}
 					}
+					table.appendChild(c.cloneNode(true));
 				}
-				str += "</tdoby></table>";
-				cell.innerHTML = str;
 			}			
 			if(row.style.display == '')
 			{
@@ -1522,13 +1608,25 @@
                 return this._ActiveValue;
             },
 			toHTMLNode: function() {
+				var table = document.createElement('table');
+				table.style.width='100%';
+				var cell = table.insertRow(-1).insertCell(-1);
+				cell.colSpan="3";
+				cell.style.textAlign = 'center';
 				var ret = document.createElement("span");
-				ret.innerHTML = this._nValue.join(", "); 
-				return ret;
+				var value = this.sortValue(this._nValue);
+				ret.innerHTML = value.join(", ");
+				cell.appendChild(ret);
+				return table;
 			},
-			getNode: function(data)
-			{
+			sortValue: function(value) {
+				return value.sort();
+			},
+			getNode: function(data){
 				return document.createTextNode(String(data));
+			},
+			Legend: function(){
+				return null;
 			}
         }
     });
@@ -1566,7 +1664,10 @@
                 this._nMaxValue = getMax(this._nValue);
                 this._nMinValue = getMin(this._nValue);
                 this._nSTDValue = getSTD(this._nValue);
-            }
+            },
+			sortValue: function(value) {
+				return value.sort(function(a, b){return b - a});
+			}
         }
     });
 
@@ -1576,39 +1677,39 @@
         extend: CValueList,
         construct: function() {
             CValueList.call(this);
+			this.nTotalValue = [0,0];
+            this.gValueZero = [];
+            this.gValueFirst = [];
+			this.nSorting = [];
         },
         methods: {
             Calculate: function() {
-				var cData = this.setPair();
-				this.doCalculate(cData[0],cData[1],cData[2]);
+				this.setPair();
+				this.doCalculate();
             },
 			setPair: function(){
-                var nTotalValue = [0, 0];
-
-                var gValueZero = [];
-                var gValueFirst = [];
                 for (var i = 0; i < this._nValue.length; ++i) {
                     var theValue = this._nValue[i];
-					gValueZero.push(theValue[0]);
-                    gValueFirst.push(theValue[1]);
-                    nTotalValue[0] += theValue[0];
-                    nTotalValue[1] += theValue[1];
+					this.gValueZero.push(theValue[0]);
+                    this.gValueFirst.push(theValue[1]);
+                    this.nTotalValue[0] += theValue[0];
+                    this.nTotalValue[1] += theValue[1];
+					this.nSorting.push(theValue[0],theValue[1]);
                 };
-				return [nTotalValue,gValueZero,gValueFirst];
 			},
-			doCalculate: function(nTotalValue,gValueZero,gValueFirst){
+			doCalculate: function(){
                 this._nAvgValue = new Array(2);
-                this._nAvgValue[0] = Number((nTotalValue[0] / this._gValue.length).toFixed(2));
-                this._nAvgValue[1] = Number((nTotalValue[1] / this._gValue.length).toFixed(2));
+                this._nAvgValue[0] = Number((this.nTotalValue[0] / this._gValue.length).toFixed(2));
+                this._nAvgValue[1] = Number((this.nTotalValue[1] / this._gValue.length).toFixed(2));
                 this._nMaxValue = new Array(2);
-                this._nMaxValue[0] = getMax(gValueZero);
-                this._nMaxValue[1] = getMax(gValueFirst);
+                this._nMaxValue[0] = getMax(this.gValueZero);
+                this._nMaxValue[1] = getMax(this.gValueFirst);
                 this._nMinValue = new Array(2);
-                this._nMinValue[0] = getMin(gValueZero);
-                this._nMinValue[1] = getMin(gValueFirst);
+                this._nMinValue[0] = getMin(this.gValueZero);
+                this._nMinValue[1] = getMin(this.gValueFirst);
                 this._nSTDValue = new Array(2);
-                this._nSTDValue[0] = getSTD(gValueZero);
-                this._nSTDValue[1] = getSTD(gValueFirst);
+                this._nSTDValue[0] = getSTD(this.gValueZero);
+                this._nSTDValue[1] = getSTD(this.gValueFirst);
 			},				
             compareTo: function(that) {
                 if (this._nAvgValue[0] !== 0 || that._nAvgValue[0] !== 0)
@@ -1629,16 +1730,27 @@
                 return this.getNode(this._nSTDValue);
             },
             toHTMLNode: function() {
-                var Str = "";
-                for (var i = 0; i < this._nValue.length; ++i) {
-                    var theValue = this._nValue[i];
-					Str += (theValue[0] != null) ? theValue[0] : 0;
-                    Str += "/";
-                    Str += (theValue[1] != null) ? theValue[1] : 0;
-                    if (i < this._gValue.length - 1)
-                        Str += ", ";
-                }
-                return document.createTextNode(Str);
+				var table = document.createElement('table');
+				table.style.width='100%';
+				var cell = table.insertRow(-1).insertCell(-1);
+				cell.style.textAlign = 'center';
+				cell.colSpan="3";
+				this.nSorting.sort(function(a, b){return b[0]-a[0]});
+                for (var i = 0; i < this.nSorting.length; ++i) {
+					var ret = document.createElement("span");
+					ret.className = "pair_value";
+                    var theValue = this.nSorting[i];
+					var s = document.createElement('span');
+					s.innerHTML = (theValue[0] != null) ? theValue[0] : 0;
+					ret.appendChild(s);
+					s = document.createElement('span');
+					s.innerHTML = ' [ ' + ((theValue[1] != null) ? theValue[1] : 0) + ' ]';
+					ret.appendChild(s);
+                    if (i < this.nSorting.length - 1)
+						ret.appendChild(document.createTextNode(', '));
+					cell.appendChild(ret);
+                }			
+				return table;
             },
 			getNode: function(data) {
 				var table = document.createElement('table');
@@ -1650,7 +1762,14 @@
 				cell1.innerHTML = String(data[0]);
 				cell2.innerHTML = String(data[1]);
 				return table;
-            }
+            },
+			Legend: function()
+			{
+				var infospan = document.createElement("span");
+				infospan.className = "pair_value";
+				infospan.innerHTML = '<span>ROLL点</span><span>&bnsp;&bnsp;实际值</span>: ';
+				return infospan;
+			}
         }
     });
 
@@ -1663,49 +1782,23 @@
         },
         methods: {
             setPair: function(){
-                var nTotalValue = [0, 0];
-                var gValueBasic = [];
-                var gValueActual = [];
-
                 for (var i = 0; i < this._nValue.length; ++i) {
                     var nSumOneAtkValue = [0, 0];
 					var theActiveValue = this._nValue[i];
                     for (var j = 0; j < theActiveValue.length; ++j) {
-                        //if (this._gValue[i][j].IsHPDamage()) {
 						var theValue = theActiveValue[j];
-						nTotalValue[0] += theValue.GetBasicDmg();
-						nTotalValue[1] += theValue.GetActualDmg();
+						this.nTotalValue[0] += theValue.GetBasicDmg();
+						this.nTotalValue[1] += theValue.GetActualDmg();
 						nSumOneAtkValue[0] = nSumOneAtkValue[0] + theValue.GetBasicDmg();
 						nSumOneAtkValue[1] = nSumOneAtkValue[1] + theValue.GetActualDmg();
-                        //}
                     }
-                    gValueBasic.push(nSumOneAtkValue[0]);
-                    gValueActual.push(nSumOneAtkValue[1]);
+                    this.gValueZero.push(nSumOneAtkValue[0]);
+                    this.gValueFirst.push(nSumOneAtkValue[1]);
+					this.nSorting.push(nSumOneAtkValue);
                 }
-				return [nTotalValue,gValueBasic,gValueActual];
-			},
-            toHTMLNode: function() {
-                var Str = "";
-                for (var i = 0; i < this._gValue.length; ++i) {
-                    var nTotalValue = [0, 0];
-					var theActiveValue = this._nValue[i];
-                    for (var j = 0; j < theActiveValue.length; ++j) {
-                        //if (this._gValue[i][j].IsHPDamage()) {
-							var theValue = theActiveValue[j];
-                            nTotalValue[0] += theValue.GetBasicDmg();
-                            nTotalValue[1] += theValue.GetActualDmg();
-                        //}
-                    }
-                    Str += nTotalValue[1] + "/" + nTotalValue[0];
-                    if (i < this._nValue.length - 1)
-                        Str += ", ";
-                }
-                return document.createTextNode(Str);
-            }
+			}
         }
     });
-
-
     ///////////////////////////////////////////////////////////////////////////////
     // Class: Info list
 	function CCellContent(value,rowspan,show,filterId,activeRows)
@@ -1717,28 +1810,30 @@
 		this.activeRows = activeRows||[];
 	}
 	
-    function CKeyType(name, type) {
+    function CKeyType(name, type,legend) {
         this.Name = name;
         this.Type = type;
+        this.legend = legend?legend.cloneNode(true):null;
         this.getValue = function(info) {
-            switch (this.Name) {
-                case Local.Text_Table_AvgRoll:
+			var value = info.ValueList;
+			switch (this.Name) {                
+				case Local.Text_Table_AvgRoll:
                 case Local.Text_Table_ItemDamagePoints:
-                    return info.ValueList.AvgValue();
+                    return value.AvgValue();
                 case Local.Text_Table_Times:
-                    return info.ValueList.GetLength();
+                    return value.GetLength();
                 case Local.Text_Table_MaxRoll:
-                    return info.ValueList.MaxValue();
+                    return value.MaxValue();
                 case Local.Text_Table_MinRoll:
-                    return info.ValueList.MinValue();
+                    return value.MinValue();
                 case Local.Text_Table_STDRoll:
-                    return info.ValueList.STDValue();
+                    return value.STDValue();
                 case Local.Text_Table_RollList:
                     var ret = document.createElement("input");
 					ret.type = "button";
 					ret.className = "button";
 					ret.value = Local.Text_Button_Show;
-					ret.setAttribute("data",info.ValueList.toString());
+					ret.setAttribute("data",value.toString());
 					return ret;
                 case Local.Text_Table_DetailList:
                     var ret = document.createElement("input");
@@ -1753,24 +1848,24 @@
         }
     }
 
-    CKeyType.AvgRoll = function() {
-        return new CKeyType(Local.Text_Table_AvgRoll, "number");
+    CKeyType.AvgRoll = function(legend) {
+        return new CKeyType(Local.Text_Table_AvgRoll, "number",legend);
     }
 
     CKeyType.Times = function() {
         return new CKeyType(Local.Text_Table_Times, "number");
     }
 
-    CKeyType.MaxRoll = function() {
-        return new CKeyType(Local.Text_Table_MaxRoll, "number");
+    CKeyType.MaxRoll = function(legend) {
+        return new CKeyType(Local.Text_Table_MaxRoll, "number",legend);
     }
 
-    CKeyType.MinRoll = function() {
-        return new CKeyType(Local.Text_Table_MinRoll, "number");
+    CKeyType.MinRoll = function(legend) {
+        return new CKeyType(Local.Text_Table_MinRoll, "number",legend);
     }
 
-    CKeyType.STDRoll = function() {
-        return new CKeyType(Local.Text_Table_STDRoll, "number");
+    CKeyType.STDRoll = function(legend) {
+        return new CKeyType(Local.Text_Table_STDRoll, "number",legend);
     }
 
     CKeyType.RollList = function() {
@@ -1829,8 +1924,8 @@
         return new CKeyType(Local.Text_Table_ItemDamagePoints, "string");
     }
 
-    CKeyType.ValueName = function() {
-        return [CKeyType.AvgRoll(), CKeyType.Times(), CKeyType.MaxRoll(), CKeyType.MinRoll(), CKeyType.STDRoll(), CKeyType.RollList()];
+    CKeyType.ValueName = function(legend) {
+        return [CKeyType.AvgRoll(legend), CKeyType.Times(), CKeyType.MaxRoll(legend), CKeyType.MinRoll(legend), CKeyType.STDRoll(legend), CKeyType.RollList()];
     }
 
     var CInfoList = DefineClass({
@@ -1866,13 +1961,22 @@
 					filters[i]=filter;
 				}
 				for (var i = 0; i < this._gInfo.length; ++i) {
-                    var gBodyCellContent = [];
 					for (var j = 0; j < this._gInfo[i].gKey.length; ++j)
 					{
 						var value = this._gInfo[i].gKey[j];
 						var filter = value.toText();
 						if(filters[j].indexOf(filter) <= -1)
 							filters[j].push(filter);
+					}
+				}
+				for (var i = 0; i < this._gInfo.length; ++i) {
+                    var gBodyCellContent = [];
+					for (var j = 0; j < this._gInfo[i].gKey.length; ++j)
+					{
+						if(j>0)
+							filters[j].sort(CompareString);
+						var value = this._gInfo[i].gKey[j];
+						var filter = value.toText();
 						gBodyCellContent.push(new CCellContent(value.toHTMLNode(),1,true,filters[j].indexOf(filter),this._gInfo[i].ValueList.ActiveValue()));
 					}
                     for (var j = 0; j < this._gValueName.length; ++j)
@@ -1941,13 +2045,16 @@
                 this._Table = new CTable(this._Title, this._Id, this._Allkey.length, isExport);
 
                 var gHeadCellContent = new Array(this._Allkey.length);
+                var gHeadCellLegend = new Array(this._Allkey.length);
                 var gBodyCellContentType = new Array(this._Allkey.length);
                 for (var i = 0; i < this._Allkey.length; ++i) {
                     gHeadCellContent[i] = this._Allkey[i].Name;
                     gBodyCellContentType[i] = this._Allkey[i].type;
+					gHeadCellLegend[i] = this._Allkey[i].legend;
                 }
 
                 this._Table.SetHeadCellContents.apply(this._Table, gHeadCellContent);
+				this._Table.SetHeadCellLegends.apply(this._Table, gHeadCellLegend);
                 this._Table.SetBodyCellContentTypes.apply(this._Table, gBodyCellContentType);
 
                 this._SetTableBodyCellContents();
@@ -2030,7 +2137,7 @@
     var CILIni = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
-            this.superclass(CValueList, Local.Text_Table_Ini, "stat_ini", [CKeyType.Char()],
+			this.superclass(CValueList, Local.Text_Table_Ini, "stat_ini", [CKeyType.Char()],
                 CKeyType.ValueName());
         },
         methods: {
@@ -2084,8 +2191,12 @@
     var CILDamage = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
-            this.superclass(CValueList, Local.Text_Table_Damage, "stat_damage", [CKeyType.Char(), CKeyType.AttackType(), CKeyType.Skill(), CKeyType.Item(), CKeyType.DamageType()],
-                CKeyType.ValueName());
+			var infospan = document.createElement("span");
+			infospan.className = "pair_value";
+			infospan.innerHTML = '<span>ROLL点</span>&nbsp;&nbsp;<span>实际值</span>';
+
+			this.superclass(CValueList, Local.Text_Table_Damage, "stat_damage", [CKeyType.Char(), CKeyType.AttackType(), CKeyType.Skill(), CKeyType.Item(), CKeyType.DamageType()],
+                CKeyType.ValueName(infospan));
         },
         methods: {
             SaveInfo: function(Info) {
@@ -2721,6 +2832,7 @@
     var Style = "div.stat_all {font-size:14px;} " +
 	     "div.stat_header {margin:1em auto 0.5em auto;} " +
         "span.stat_title {margin: auto 1em auto 0em; font-size:20px; font-weight:bold; color:#FFF;} span.clickable {cursor:pointer;} " +
+        "span.pair_value {width:100%; font-size:14px;} span.pair_value span {width:50%; min-width:3em; text-align:right; color:#F8A400;} span.pair_value span + span {color:#00CC00;} " +
         "table[hide] {display:none;} " +
         "table.pair_value {width:100%;} table.pair_value td {width:50%; min-width:3em; text-align:right; color:#F8A400;} table.pair_value td + td {color:#00CC00;} ";
 
