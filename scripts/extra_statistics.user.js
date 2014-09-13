@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.12
+// @version			2.12a
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -681,7 +681,6 @@
 			infospan.id = tableid + '_orderInfo_' + i;
 			infospan.innerHTML = '<span></span><span></span>';
 			thSpan.appendChild(infospan);
-			var canTitleOrder = true;
 			if(legend)
 			{
 				infospan.className = legend.className;
@@ -699,7 +698,6 @@
 						else
 							l.addEventListener("click", FactorySort(tableid,i,li), false);
 					}
-					canTitleOrder = false;
 				}
 				else
 				{
@@ -716,7 +714,7 @@
 					}
 				}
 			}
-			if(canTitleOrder);
+			else
 			{
 				thSpan.className = "clickable";
 				if(this._isExport)
