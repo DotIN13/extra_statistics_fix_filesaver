@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.12a
+// @version			2.12b
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -767,12 +767,13 @@
 			searchButton.id = this._filterId + "_button";
 			searchButton.value="查询";
 			searchButton.className ="button";
-			searchButton.style.textAlign = 'center';
 			if(this._isExport)
 				searchButton.setAttribute('onclick', "cf('" + tableid + "','" + this._filterId + "');");
 			else
 				searchButton.addEventListener("click", FactoryFilter(tableid,this._filterId), false);
-			trfilter.insertCell(-1).appendChild(searchButton);	
+			var buttonCell = trfilter.insertCell(-1);
+			buttonCell.appendChild(searchButton);
+			buttonCell.style.textAlign = 'center';			
 		}
         for (var i = 0; i < this._BodyCellContents.length; ++i) {
             var row = table.insertRow(-1);
@@ -1605,6 +1606,7 @@
             this._nMaxValue; // unsure type
             this._nMinValue; // unsure type
             this._nSTDValue; // unsure type
+            this._nTotalValue; // unsure type
         },
         methods: {
             GetLength: function() {
@@ -1632,6 +1634,9 @@
             },
             STDValue: function() {
                 return this.getNode(this._nSTDValue);
+            },
+            TotalValue: function() {
+                return this.getNode(this._nTotalValue);
             },
 			ActiveValue: function() {
                 return this._ActiveValue;
@@ -1671,6 +1676,7 @@
                 this._nMaxValue = "";
                 this._nMinValue = "";
                 this._nSTDValue = "";
+                this._nTotalValue = "";
             },
 			compareTo: function(that) {
                 return 0;
@@ -1693,11 +1699,11 @@
         },
         methods: {
             Calculate: function() {
-                var nTotalValue = 0;
+                this._nTotalValue = 0;
 				for (var i = 0; i < this._nValue.length; ++i)
- 					nTotalValue += Number(this._nValue[i]);
+ 					this._nTotalValue += Number(this._nValue[i]);
 
-                this._nAvgValue = Number((nTotalValue / this._gValue.length).toFixed(2));
+                this._nAvgValue = Number((this._nTotalValue / this._gValue.length)).toFixed(2);
                 this._nMaxValue = getMax(this._nValue);
                 this._nMinValue = getMin(this._nValue);
                 this._nSTDValue = getSTD(this._nValue);
@@ -1714,7 +1720,7 @@
         extend: CValueList,
         construct: function() {
             CValueList.call(this);
-			this.nTotalValue = [0,0];
+			this._nTotalValue = [0,0];
             this.gValueZero = [];
             this.gValueFirst = [];
 			this.nSorting = [];
@@ -1729,15 +1735,15 @@
                     var theValue = this._nValue[i];
 					this.gValueZero.push(theValue[0]);
                     this.gValueFirst.push(theValue[1]);
-                    this.nTotalValue[0] += theValue[0];
-                    this.nTotalValue[1] += theValue[1];
+                    this._nTotalValue[0] += theValue[0];
+                    this._nTotalValue[1] += theValue[1];
 					this.nSorting.push(theValue[0],theValue[1]);
                 };
 			},
 			doCalculate: function(){
                 this._nAvgValue = new Array(2);
-                this._nAvgValue[0] = Number((this.nTotalValue[0] / this._gValue.length).toFixed(2));
-                this._nAvgValue[1] = Number((this.nTotalValue[1] / this._gValue.length).toFixed(2));
+                this._nAvgValue[0] = Number((this._nTotalValue[0] / this._gValue.length).toFixed(2));
+                this._nAvgValue[1] = Number((this._nTotalValue[1] / this._gValue.length).toFixed(2));
                 this._nMaxValue = new Array(2);
                 this._nMaxValue[0] = getMax(this.gValueZero);
                 this._nMaxValue[1] = getMax(this.gValueFirst);
@@ -1753,18 +1759,6 @@
                     return this._nAvgValue[0] - that._nAvgValue[0];
                 else
                     return this._nAvgValue[1] - that._nAvgValue[1];
-            },
-            AvgValue: function() {
-                return this.getNode(this._nAvgValue);
-            },
-            MaxValue: function() {
-                return this.getNode(this._nMaxValue);
-            },
-            MinValue: function() {
-                return this.getNode(this._nMinValue);
-            },
-            STDValue: function() {
-                return this.getNode(this._nSTDValue);
             },
             toHTMLNode: function() {
 				var table = document.createElement('table');
@@ -1824,8 +1818,8 @@
 					var theActiveValue = this._nValue[i];
                     for (var j = 0; j < theActiveValue.length; ++j) {
 						var theValue = theActiveValue[j];
-						this.nTotalValue[0] += theValue.GetBasicDmg();
-						this.nTotalValue[1] += theValue.GetActualDmg();
+						this._nTotalValue[0] += theValue.GetBasicDmg();
+						this._nTotalValue[1] += theValue.GetActualDmg();
 						nSumOneAtkValue[0] = nSumOneAtkValue[0] + theValue.GetBasicDmg();
 						nSumOneAtkValue[1] = nSumOneAtkValue[1] + theValue.GetActualDmg();
                     }
@@ -1865,6 +1859,8 @@
                     return value.MinValue();
                 case Local.Text_Table_STDRoll:
                     return value.STDValue();
+                case Local.Text_Table_Total:
+                    return value.TotalValue();
                 case Local.Text_Table_RollList:
                 case Local.Text_Table_DetailList:
                     var ret = document.createElement("input");
@@ -1899,6 +1895,10 @@
         return new CKeyType(Local.Text_Table_STDRoll, "number",legend);
     }
 
+    CKeyType.TotalRoll = function(legend) {
+        return new CKeyType(Local.Text_Table_Total, "number",legend);
+    }
+	
     CKeyType.RollList = function(legend) {
         return new CKeyType(Local.Text_Table_RollList, "button",legend);
     }
@@ -1978,6 +1978,10 @@
 
     CKeyType.ValueName = function(legend) {
         return [CKeyType.AvgRoll(legend), CKeyType.Times(), CKeyType.MaxRoll(legend), CKeyType.MinRoll(legend), CKeyType.STDRoll(legend), CKeyType.RollList()];
+    }
+
+	CKeyType.TotalValueName = function(legend) {
+        return [CKeyType.TotalRoll(legend),CKeyType.AvgRoll(legend), CKeyType.Times(), CKeyType.MaxRoll(legend), CKeyType.MinRoll(legend), CKeyType.STDRoll(legend), CKeyType.RollList()];
     }
 
     var CInfoList = DefineClass({
@@ -2248,7 +2252,7 @@
 			infospan.innerHTML = '<span>ROLL点</span>&nbsp;&nbsp;<span>实际值</span>';
 
 			this.superclass(CValueList, Local.Text_Table_Damage, "stat_damage", [CKeyType.Char(), CKeyType.AttackType(), CKeyType.Skill(), CKeyType.Item(), CKeyType.DamageType()],
-                CKeyType.ValueName(infospan));
+                CKeyType.TotalValueName(infospan));
         },
         methods: {
             SaveInfo: function(Info) {
@@ -2276,7 +2280,7 @@
 			infospan.innerHTML = '<span>ROLL点</span>&nbsp;&nbsp;<span>实际值</span>';
 
 			this.superclass(CValueList, Local.Text_Table_Damaged, "stat_damaged", [CKeyType.Char(), CKeyType.AttackType(), CKeyType.Skill(), CKeyType.Item(), CKeyType.DamageType()],
-                CKeyType.ValueName(infospan));
+                CKeyType.TotalValueName(infospan));
         },
         methods: {
             SaveInfo: function(Info) {
@@ -2300,7 +2304,7 @@
         extend: CInfoList,
         construct: function(CValueList) {
             this.superclass(CValueList, Local.Text_Table_Heal, "stat_heal", [CKeyType.Char(), CKeyType.Skill(), CKeyType.Item(), CKeyType.HealType()],
-                CKeyType.ValueName());
+                CKeyType.TotalValueName());
         },
         methods: {
             SaveInfo: function(Info) {
@@ -2321,7 +2325,7 @@
         extend: CInfoList,
         construct: function(CValueList) {
             this.superclass(CValueList, Local.Text_Table_Healed, "stat_healed", [CKeyType.Char(), CKeyType.HealType()],
-                CKeyType.ValueName());
+                CKeyType.TotalValueName());
         },
         methods: {
             SaveInfo: function(Info) {
@@ -2372,7 +2376,7 @@
     var CILItemDamage = DefineClass({
         extend: CInfoList,
         construct: function(CValueList) {
-            this.superclass(CValueList, Local.Text_Table_DamagedItems, "stat_item_damage", [CKeyType.Char(), CKeyType.Item()], [CKeyType.Times(), CKeyType.ItemDamagePoints(), CKeyType.RollList()]);
+            this.superclass(CValueList, Local.Text_Table_DamagedItems, "stat_item_damage", [CKeyType.Char(), CKeyType.Item()], [CKeyType.TotalRoll(),CKeyType.Times(), CKeyType.ItemDamagePoints(), CKeyType.RollList()]);
         },
         methods: {
             SaveInfo: function(Info) {
@@ -2898,6 +2902,8 @@
         "Min值"],
         Text_Table_STDRoll: ["STD roll",
         "STD值"],
+        Text_Table_Total: ["Total",
+        "总数"],
         Text_Table_Times: ["Times",
         "次数"],
         Text_Table_RollList: ["Roll list",
@@ -3229,7 +3235,6 @@
 			gIndexDiv = gIndexTemplateDiv.cloneNode(true);
             var table = document.createElement("div");
             gCurrentReport = gSelectedReport[0];
-            StatEntireDiv = document.createElement("div");
             if(includeData)
 			{
 				StatEntireDiv = document.createElement("div");
@@ -3383,6 +3388,11 @@
                         var theCheckbox = gSelectedReport[i];
                         if (theCheckbox.checked) {
                             gCurrentReport = theCheckbox;
+							if(includeData)
+							{
+								StatEntireDiv = document.createElement("div");
+								StatEntire = CreateStat(StatEntireDiv, true);
+							}
                             GetLevelPage(1, 1);
                             return;
                         }
