@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.12b
+// @version			2.13
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -428,11 +428,12 @@
     // CLASSES ////////////////////////////////////////////////////////////////////
 
     // NextNode: the node next to the statistics node when it is created
-    function CStat(NextNode) {
+    function CStat(NextNode,reportInfoDiv) {
         this._HTML = '';
-
+		this._reportInfoDiv = reportInfoDiv;
         this._gInfoList = [];
-
+		this.iscurrentPage = true;
+		
         this.nTotalPages = 0;
         this.nReadPages = 0;
         this.setNode = function(newNode) {
@@ -460,8 +461,11 @@
 			this._HTML = '';
         };
         this.setNode(NextNode);
+		this._reportInfoDiv.appendChild(document.createElement('table'));
     }
 
+	
+	
     CStat.prototype._Write = function(Text) {
         this._HTML += Text;
     };
@@ -516,7 +520,12 @@
 			}
 		}
 		this._Node.setAttribute('tabs',tabDivs.join(','));
-		this._Node.appendChild(document.createElement('hr'));		
+		this._Node.appendChild(document.createElement('hr'));
+		if(!this.iscurrentPage)
+		{
+			this._reportInfoDiv.style.display = 'none';
+			this._Node.appendChild(this._reportInfoDiv);
+		}
 	};
 
     CStat.prototype.ShowProgress = function() {
@@ -1134,16 +1143,30 @@
 			{
 				if(activeRows.length > 0)
 				{
-					var c = table.insertRow(-1).insertCell(-1);
-					c.colSpan = '3';
-					c.innerHTML = '<hr/>';
+					debugger;
+					var ids = activeRows[0].split('_');
+					var level = Number(ids[1]);
+					var ac = table.insertRow(-1).insertCell(-1);
+					ac.colSpan = '3';
+					ac.innerHTML = '<hr/><br />层 ' + level + '<br /><hr/>';
 					for(var i = 0;i<activeRows.length;i++)
 					{
+						ids = activeRows[i].split('_');
+						var newlevel = Number(ids[1]);
+						if(newlevel != level)
+						{
+							ac = table.insertRow(-1).insertCell(-1);
+							ac.colSpan = '3';
+							ac.innerHTML = '<hr/><br />层 ' + newlevel + '<br /><hr/>';
+							level = newlevel;
+						}
 						var theRow = document.getElementById(activeRows[i]).cloneNode(true);
 						if(theRow)
 						{
 							table.appendChild(theRow);
-							table.appendChild(c.cloneNode(true));
+							var c = table.insertRow(-1).insertCell(-1);
+							c.colSpan = '3';
+							c.innerHTML = '<hr/>';
 						}
 					}
 				}
@@ -2395,9 +2418,9 @@
     // FUNCTIONS //////////////////////////////////////////////////////////////////	
     function CountStat(page, bLastSubPage, alsoSaveEntire) {
         // Read the last round only when reading the last sub page
-        if (!bLastSubPage) RemoveLastRound(page);
-
-        var Navi = new CNavi(0, 0, 0, 0);
+		if (!bLastSubPage) RemoveLastRound(page);
+		var nLevel = GetHiddenInfo(page, "current_level", 1);
+        var Navi = new CNavi(nLevel, 0, 0, 0);
         var allRows = page.getElementsByTagName("tr");
         for (var i = 0; i < allRows.length; ++i) {
             var Info = new CActionInfo(Navi);
@@ -2406,8 +2429,14 @@
                 continue;
             Navi.nRow++;
 			allRows[i].setAttribute('id',Info.ActiveRow);
-
-            var ActiveColumn = node_after(IniColumn);
+			if(Stat.iscurrentPage == false){
+				Stat._reportInfoDiv.firstChild.appendChild(allRows[i].cloneNode(true));
+			}
+			if (alsoSaveEntire && StatEntire.iscurrentPage == false){
+				StatEntire._reportInfoDiv.firstChild.appendChild(allRows[i].cloneNode(true));
+			}
+            
+			var ActiveColumn = node_after(IniColumn);
             GetActiveInfo(ActiveColumn, Info);
 
             switch (Info.Active.ActionType.GetKind()) {
@@ -2926,6 +2955,9 @@
 
     var Local;
     var Stat;
+	
+	var localInfo = document;
+	var reportInfoDiv;
 
     if (typeof(GM_addStyle) == 'undefined') {
         function GM_addStyle(styles) {
@@ -2949,9 +2981,9 @@
         };
     }
 
-    function CreateStat(node, isExport) {
+    function CreateStat(node, infoNode,isExport) {
         // Stat initialization
-        var theStat = new CStat(node);
+        var theStat = new CStat(node,infoNode);
         theStat.RegInfoList(new CILIni(CVLNumber, isExport));
         theStat.RegInfoList(new CILAttackRoll(CVLNumber, isExport));
         theStat.RegInfoList(new CILDefenceRoll(CVLNumber, isExport));
@@ -3017,8 +3049,11 @@
                 return;
             else
                 this.className = "button_disabled";
-			Stat = CreateStat(node_after(this.parentNode), false);
+			var reportInfoDiv = document.createElement('div');
+			reportInfoDiv.id = 'report_info';
+			Stat = CreateStat(node_after(this.parentNode),reportInfoDiv, false);
             Stat.nTotalPages = 1;
+			Stat.iscurrentPage = true;
             ReadPage(document, true);
         } catch (e) {
             alert("OnCountStat(): " + e);
@@ -3032,7 +3067,10 @@
                 return;
             else
                 this.className = "button_disabled";
-			Stat = CreateStat(node_after(this.parentNode), false);
+			var reportInfoDiv = document.createElement('div');
+			reportInfoDiv.id = 'report_Entire_info';
+			Stat = CreateStat(node_after(this.parentNode),reportInfoDiv, false);
+			
             CountEntireStat();
         } catch (e) {
             alert("OnCountEntireStat(): " + e);
@@ -3059,6 +3097,7 @@
                 if (XmlHttp.readyState == 4 && XmlHttp.status == 200) {
                     var Page = document.createElement("div");
                     Page.innerHTML = XmlHttp.responseText;
+					Stat.iscurrentPage = false;
                     ReadPage(Page, bFirstRead);
                 }
             } catch (e) {
@@ -3238,7 +3277,10 @@
             if(includeData)
 			{
 				StatEntireDiv = document.createElement("div");
-				StatEntire = CreateStat(StatEntireDiv, true);
+				var EntireInfoDiv = document.createElement("div");
+				EntireInfoDiv.id = 'report_entire_info';
+				StatEntire = CreateStat(StatEntireDiv,EntireInfoDiv, true);
+				StatEntire.iscurrentPage = false;
 			}
             GetLevelPage(1, 1);
         } else {
@@ -3298,14 +3340,18 @@
         var nMaxRepPage = ret[1];
 
         if (includeData && nCurrRepPage == 1) {
-            Stat = CreateStat(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling), true);
+			var EntireInfoDiv = document.createElement("div");
+			EntireInfoDiv.id = 'report_entire_info';
+            Stat = CreateStat(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling),EntireInfoDiv, true);
             Stat.nTotalPages = nMaxRepPage;
+			Stat.iscurrentPage = true;
         }
 		if(nMaxRepPage > 1)
 		{
 			var copyDiv = document.createElement("div");
 			copyDiv.innerHTML = gResponseDiv.innerHTML;
 			multiPageDiv.push(copyDiv);
+			Stat.iscurrentPage = false;
 		}
 		else
 			multiPageDiv.push(gResponseDiv);
@@ -3323,6 +3369,7 @@
 				var theFileName = gCurrentReport.value + "/level" + nLevel + ".html";
 				if (i > 0) {
 					theFileName = gCurrentReport.value + "/level" + nLevel + "_" + (i+1) + ".html";
+					Stat.iscurrentPage = false;
 				}
 				if(includeData)
 				{
@@ -3391,7 +3438,10 @@
 							if(includeData)
 							{
 								StatEntireDiv = document.createElement("div");
-								StatEntire = CreateStat(StatEntireDiv, true);
+								var EntireInfoDiv = document.createElement("div");
+								EntireInfoDiv.id = 'report_entire_info';
+								StatEntire = CreateStat(StatEntireDiv,EntireInfoDiv,true);
+								StatEntire.iscurrentPage = false;
 							}
                             GetLevelPage(1, 1);
                             return;
@@ -3441,14 +3491,13 @@
     }
 
     function handlePage(page,nLevel) {
-
 		var thepage = page.getElementsByTagName("form")[0];
         var h2 = thepage.getElementsByTagName("h2")[0];
         if (h2) {
             h2.innerHTML = replaceDate(h2.innerHTML);
         }
 		
-		removePageInput(thepage);
+		//removePageInput(thepage);
         replaceURL(thepage, "link", "href");
         replaceURL(thepage, "script", "src");
         replaceURL(thepage, "img", "src");
