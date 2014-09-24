@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.13a
+// @version			2.14
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -487,6 +487,41 @@
             this._gInfoList[i].SaveInfo(Info);
     };
 	
+	CStat.prototype.getTab = function(isExport,showhide) {
+		function FactoryTabClick(Id) {
+			return function() {
+				CStat.OnTabClick(Id);
+			};
+		}
+		var tab = document.createElement('li');
+		tab.className = 'not_selected';
+		var title = Local.Text_Button_ShowAll;
+		var id = 'showall';
+		if(showhide == true)
+		{
+			title = Local.Text_Button_ShowAll;
+			id = 'showall';
+		}
+		else
+		{
+			tab.id = 'tab_hideall';
+			title = Local.Text_Button_HideAll;
+			id = 'hideall';
+		}
+			tab.id = 'tab_' + id;
+		var a = document.createElement('A');
+		a.id = 'show_all_a';
+		var name = document.createTextNode(title);
+		a.appendChild(name);
+		a.href='#';
+		if(isExport)
+			a.setAttribute("onclick", "st('" + id + "');");
+		else
+			a.addEventListener("click", FactoryTabClick(id), false);
+		tab.appendChild(a);
+		return tab;
+	};
+	
 	CStat.prototype.Show = function(isExport) {
 		this._Node.innerHTML = '';
 		var tabs = document.createElement ("ul");
@@ -519,6 +554,8 @@
 				}
 			}
 		}
+		tabs.appendChild(this.getTab(isExport,true));
+		tabs.appendChild(this.getTab(isExport,false));
 		this._Node.setAttribute('tabs',tabDivs.join(','));
 		this._Node.appendChild(document.createElement('hr'));
 		if(!this.iscurrentPage)
@@ -558,21 +595,41 @@
 	CStat.OnTabClick = function(id){
 		var statdiv = document.getElementById('stat_all');
 		var tabs = statdiv.getAttribute('tabs').split(',');
+		var showall = false;
+		var lishowall = document.getElementById('tab_showall');
+		var lihideall = document.getElementById('tab_hideall');
+		lishowall.className = 'not_selected';
+		lihideall.className = 'not_selected';
 		for(var i = 0; i< tabs.length;i++)
 		{
 			var tabid = tabs[i];
 			var tab = document.getElementById(tabid);
 			var li = document.getElementById('tab_' + tabid);
-			if(tabid == id)
+			li.className = 'not_selected';
+			if(id == 'showall')
 			{
+				lishowall.className = 'selected';
 				tab.style.display = '';
-				li.className = 'selected';
+			}
+			else if (id == 'hideall')
+			{
+				lihideall.className = 'selected';
+				tab.style.display = 'none';
 			}
 			else
 			{
-				tab.style.display = 'none';
-				li.className = 'not_selected';
+				if(tabid == id)
+				{
+					tab.style.display = '';
+					li.className = 'selected';
+				}
+				else
+				{
+					tab.style.display = 'none';
+					li.className = 'not_selected';
+				}
 			}
+
 		}
 	}
 
@@ -1458,7 +1515,7 @@
 
             if (HTMLElement != null) {
                 this._Name = HTMLElement.firstChild.data;
-                this._Href = '#';
+                this._Href = HTMLElement.href;
                 this._OnClick = HTMLElement.getAttribute("onclick");
                 this._Class = HTMLElement.className;
 				this.Init();
@@ -1481,7 +1538,7 @@
 					var ret = document.createElement('A');
 					var name = document.createTextNode(this._Name);
 					ret.appendChild(name);
-					ret.href='#';
+					ret.href= this._Href;
 					ret.setAttribute("onclick", this._OnClick);
 					ret.setAttribute('kind',this._nKind);
 					if(this._Class)
@@ -2863,6 +2920,10 @@
         "显示"],
         Text_Button_Hide: ["Hide",
         "隐藏"],
+        Text_Button_ShowAll: ["Show All",
+        "全部显示"],
+        Text_Button_HideAll: ["Hide All",
+        "全部隐藏"],
         Text_Button_Default: ["Default",
         "默认"],
         TextList_AttackType: [["melee", "ranged", "spell", "social", "ambush", "trap", "nature", "disease", "detonate", "disarm trap", "magic projectile", "curse", "scare"],
