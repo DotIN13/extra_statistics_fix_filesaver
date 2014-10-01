@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.14
+// @version			2.15
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -570,14 +570,6 @@
             this.nReadPages + '/' + this.nTotalPages + ') ...</h1><hr />';
     };
 
-    CStat.prototype._OptionsHTML = function() {
-        var Str = '<div id="stat_options">' +
-            '<div class="stat_header"><span class="stat_title">' + Local.Text_Options + '</span>';
-        Str += CreateElementHTML("input", null, ["type", "button"], ["class", "button"], ["id", "stat_options_default"], ["value", Local.Text_Button_Default]);
-        Str += '</div></div>';
-        return Str;
-    };
-
     CStat.prototype._AddEvents = function() {
         function OnDelGMValues() {
             try {
@@ -646,7 +638,7 @@
         this._BodyCellContents = [];
         this._HTML = '';
         this._isExport = isExport;
-        this._bShow = GM_getValue(Id, true);
+        this._bShow = true;
     }
 
     CTable._ContentAttrs = {
@@ -901,12 +893,8 @@
             var Table = document.getElementById(Id);
             if (Table.hasAttribute("hide")) {
                 Table.removeAttribute("hide");
-				if(this.GM_getValue)
-					GM_setValue(Id, true);
             } else {
                 Table.setAttribute("hide", "hide");
-				if(this.GM_getValue)
-					GM_setValue(Id, false);
             }
         } catch (e) {
             alert("CTable.OnClickTitle(): " + e);
@@ -3033,15 +3021,6 @@
     }
 
     // FUNCTIONS //////////////////////////////////////////////////////////////////
-    if (!this.GM_getValue || this.GM_getValue.toString().indexOf("not supported") > -1) {
-        this.GM_getValue = function(key, def) {
-            return localStorage[key] || def;
-        };
-        this.GM_setValue = function(key, value) {
-            return localStorage[key] = value;
-        };
-    }
-
     function CreateStat(node, infoNode,isExport) {
         // Stat initialization
         var theStat = new CStat(node,infoNode);
