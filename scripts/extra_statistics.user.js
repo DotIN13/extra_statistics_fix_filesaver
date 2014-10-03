@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.15
+// @version			2.16
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -2465,7 +2465,10 @@
         // Read the last round only when reading the last sub page
 		if (!bLastSubPage) RemoveLastRound(page);
 		var nLevel = GetHiddenInfo(page, "current_level", 1);
-        var Navi = new CNavi(nLevel, 0, 0, 0);
+		var ret = GetRepPageInfo(page, [1, 1]);
+        var nCurrRepPage = ret[0];
+
+        var Navi = new CNavi(nLevel, nCurrRepPage, 0, 0);
         var allRows = page.getElementsByTagName("tr");
         for (var i = 0; i < allRows.length; ++i) {
             var Info = new CActionInfo(Navi);
