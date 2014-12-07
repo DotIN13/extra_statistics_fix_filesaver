@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.16
+// @version			2.17
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -3298,7 +3298,6 @@
 		var includeCheckbox = document.getElementById(rValue.Chk_includeData);
 		includeData = includeCheckbox.checked;
         var allCheckbox = document.getElementsByTagName("input");
-        gZip = new JSZip();
         gSelectedReport = [];
         for (var i = 0; i < allCheckbox.length; ++i) {
             var theCheckbox = allCheckbox[i];
@@ -3311,24 +3310,136 @@
 
         if (gSelectedReport.length > 0) {
             gTitle = window.prompt("输入战报名称", "我的战报");
-			headDiv = document.getElementsByTagName('head')[0].cloneNode(true);
-			handleHead(headDiv);
-
-			gIndexDiv = gIndexTemplateDiv.cloneNode(true);
-            var table = document.createElement("div");
-            gCurrentReport = gSelectedReport[0];
-            if(includeData)
-			{
-				StatEntireDiv = document.createElement("div");
-				var EntireInfoDiv = document.createElement("div");
-				EntireInfoDiv.id = 'report_entire_info';
-				StatEntire = CreateStat(StatEntireDiv,EntireInfoDiv, true);
-				StatEntire.iscurrentPage = false;
-			}
-            GetLevelPage(1, 1);
+            if(gTitle != null)
+            {
+        		gZip = new JSZip();
+                headDiv = document.getElementsByTagName('head')[0].cloneNode(true);
+                handleHead(headDiv);
+    
+                gIndexDiv = gIndexTemplateDiv.cloneNode(true);
+                var table = document.createElement("div");
+                gCurrentReport = gSelectedReport[0];
+                if(includeData)
+                {
+                    StatEntireDiv = document.createElement("div");
+                    var EntireInfoDiv = document.createElement("div");
+                    EntireInfoDiv.id = 'report_entire_info';
+                    StatEntire = CreateStat(StatEntireDiv,EntireInfoDiv, true);
+                    StatEntire.iscurrentPage = false;
+                }
+                if(!isDuel)
+                    GetLevelPage(1, 1);
+                else
+                    GetDuelPage();
+            }
+            else
+                gIsWorking = false;
         } else {
             window.alert("没有选择任何战报");
+            gIsWorking = false;
         }
+        
+    }
+	
+	function GetDuelPage()
+	{
+        var XmlHttp = new XMLHttpRequest();
+
+        XmlHttp.onreadystatechange = function() {
+            try {
+                if (XmlHttp.readyState == 4 && XmlHttp.status == 200) {
+                    gResponseDiv.innerHTML = XmlHttp.responseText;
+                    ReadDuelPage();
+                }
+            } catch (e) {
+                alert("GetLevelPage XMLHttpRequest.onreadystatechange(): " + e);
+            }
+        };
+		debugger;
+        
+        XmlHttp.open("GET", gCurrentReport.getAttribute("href")+'&IS_POPUP=1&current_view[1]', true);
+        XmlHttp.send(null);
+	}
+	
+	function ReadDuelPage() {
+		var rows = gIndexDiv.getElementsByTagName("tr");
+		var row = rows[rows.length - 1];
+		row.parentNode.appendChild(row.cloneNode(true));
+
+		row.setAttribute("class", gIndexRowclass);
+		if (gIndexRowclass == "row0")
+			gIndexRowclass = "row1";
+		else
+			gIndexRowclass = "row0";
+		row.cells[0].innerHTML = replaceDate(gCurrentReport.getAttribute("c0"));
+		row.cells[1].innerHTML = gCurrentReport.getAttribute("c1");
+		row.cells[2].innerHTML = gCurrentReport.getAttribute("reporttime");
+		var cell = row.cells[3];
+
+		cell.innerHTML = "";
+		addIndexNewButton(cell, "细节", "document.location.href='" + gCurrentReport.value + "/detail.html';");
+
+        if (includeData) {
+			var EntireInfoDiv = document.createElement("div");
+			EntireInfoDiv.id = 'report_entire_info';
+            Stat = CreateStat(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling),EntireInfoDiv, true);
+            Stat.nTotalPages = 1;
+			Stat.iscurrentPage = true;
+        }
+		multiPageDiv.push(gResponseDiv);
+		
+        infodiv.innerHTML = "保存决斗：&nbsp;" + gTitle ;
+
+        if(includeData)
+			CountStat(gResponseDiv, true, true);
+			
+		for(var i = 0; i< multiPageDiv.length ; i++)
+        {
+            var thepage = multiPageDiv[i];
+            var theFileName = gCurrentReport.value + "/detail.html";
+            if (i > 0) {
+                theFileName = gCurrentReport.value + "/detail_" + (i+1) + ".html";
+                Stat.iscurrentPage = false;
+            }
+            if(includeData)
+            {
+                Stat.setNode(node_before(thepage.getElementsByTagName("h1")[0].nextSibling));				
+                Stat.Show(true);
+            }
+            gZip.file(theFileName, handlePage(thepage,null));
+        }
+        multiPageDiv = [];
+        gCurrentReport.checked = false;
+        for (var i = 0; i < gSelectedReport.length; ++i) {
+            var theCheckbox = gSelectedReport[i];
+            if (theCheckbox.checked) {
+                gCurrentReport = theCheckbox;
+                if(includeData)
+                {
+                    StatEntireDiv = document.createElement("div");
+                    var EntireInfoDiv = document.createElement("div");
+                    EntireInfoDiv.id = 'report_entire_info';
+                    StatEntire = CreateStat(StatEntireDiv,EntireInfoDiv,true);
+                    StatEntire.iscurrentPage = false;
+                }
+                GetDuelPage();
+                return;
+            }
+        }
+ 		
+		handleIndexPage();
+		infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + gCurrentReport.getAttribute("title");
+		var indexStr = '<html>\n' + headDiv.outerHTML + '\n<body>\n<h1>' + gTitle + '</h1><br/>\n' + gIndexDiv.innerHTML + '\n</body>\n</html>';
+		gZip.file("index.html", indexStr);
+		var blob = gZip.generate({
+			type: "blob"
+		});
+		saveAs(blob, "wodlog" + '_' + Math.random().toString(36).substr(2, 9) + ".zip");
+		alert('zip文件生成完毕');
+		infodiv.innerHTML = "";
+		gResponseDiv.innerHTML = "";
+		gIsWorking = false;
+
     }
 
     function GetLevelPage(nLevel, nRepPage) {
@@ -3492,7 +3603,7 @@
                     }
                     handleIndexPage();
                     infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + "生成Zip文件";
-                    var indexStr = '<html>\n' + headDiv.outerHTML + '\n<body>\n' + gIndexDiv.innerHTML + '\n</body>\n</html>';
+                    var indexStr = '<html>\n' + headDiv.outerHTML + '\n<body>\n<h1>' + gTitle + '</h1><br/>\n' + gIndexDiv.innerHTML + '\n</body>\n</html>';
                     gZip.file("index.html", indexStr);
                     var blob = gZip.generate({
                         type: "blob"
@@ -3781,6 +3892,9 @@
         OrigText_H1_DungeonLog: ["Battle Report",
             "战报"
         ],
+        OrigText_H1_DuelLog: ["Battle Report",
+            "您的决斗"
+        ],
         OrigText_Button_DungeonDetails: ["details",
             "详细资料"
         ],
@@ -3810,10 +3924,11 @@
             Pattern_idNumber: /([\d]+)/,
             pattern_http: /^http/i
         };
+    
+    var isDuel = false;
         //-----------------------------------------------------------------------------
         // "main"
-        //-----------------------------------------------------------------------------    
-
+        //-----------------------------------------------------------------------------   
     function ReprotMain() {
         rLocal = GetLocalContents(rContents);
         if (rLocal === null) return;
@@ -3825,30 +3940,30 @@
             return;
         for (i = 0; i < allH1.length; ++i) {
             h1 = allH1[i];
-            if (h1.innerHTML == rLocal.OrigText_H1_DungeonLog) {
+            if (h1.innerHTML == rLocal.OrigText_H1_DungeonLog || h1.innerHTML == rLocal.OrigText_H1_DuelLog) {
                 infodiv = document.createElement("div");
                 infodiv.innerHTML = "";
                 h1.parentNode.insertBefore(infodiv, h1.nextSibling);
-				var newSpan = document.createElement("span");
-				newSpan.innerHTML = "同时保存统计信息";
-				h1.parentNode.insertBefore(newSpan, h1.nextSibling);
-				var newCheckBox = document.createElement("input");
-				newCheckBox.setAttribute("type", "checkbox");
-				newCheckBox.setAttribute("class", "checkbox");
-				newCheckBox.setAttribute("value", "同时保存统计信息");
-				newCheckBox.id = "export_with_data";
-				h1.parentNode.insertBefore(newCheckBox, h1.nextSibling);
+                var newSpan = document.createElement("span");
+                newSpan.innerHTML = "同时保存统计信息";
+                h1.parentNode.insertBefore(newSpan, h1.nextSibling);
+                var newCheckBox = document.createElement("input");
+                newCheckBox.setAttribute("type", "checkbox");
+                newCheckBox.setAttribute("class", "checkbox");
+                newCheckBox.setAttribute("value", "同时保存统计信息");
+                newCheckBox.id = "export_with_data";
+                h1.parentNode.insertBefore(newCheckBox, h1.nextSibling);
                 InsertButton(h1, rLocal.Text_Button_Exportlog, exportLog);
                 InsertButton(h1, rLocal.Text_Button_ClearAll, cleartAll);
                 InsertButton(h1, rLocal.Text_Button_SelectAll, selectAll);
-
-				
-				
+                
+                
+                
                 gResponseDiv = document.createElement("div");
                 gResponseDiv.innerHTML = "";
                 gIndexTemplateDiv = document.createElement("div");
                 gIndexTemplateDiv.innerHTML = "";
-
+                
                 shouldContinue = true;
                 break;
             }
@@ -3867,33 +3982,57 @@
                     var newCheckbox = document.createElement("input");
                     newCheckbox.setAttribute("type", "checkbox");
                     if (rValue.Pattern_logRow.test(row.getAttribute("class"))) {
-                        var reportName = "<span>" + row.cells[1].firstChild.innerHTML + "</span>";
-                        var reportTime = "<span>" + row.cells[0].firstChild.innerHTML + "</span>";
-                        var title = reportName + "&nbsp;-&nbsp;" + reportTime;
-                        var allInput = row.cells[2].getElementsByTagName("input");
-                        var id = "";
-                        var index = "";
-                        for (var k = 0; k < allInput.length; ++k) {
-                            var input = allInput[k];
-                            var name = input.getAttribute("name");
-                            var value = input.getAttribute("value");
-                            if (name.indexOf("report_id") != -1) {
-                                var Result = rValue.Pattern_idNumber.exec(name);
-                                index = Number(Result[1]);
-                                id = value;
-                                break;
+                        if(isDuel)
+                        {
+                            var reportName = "<span>" + row.cells[0].innerHTML.replace("<hr>"," <b>对战</b> ") + " " + row.cells[1].innerText + "</span>";
+                            var reportTime = "<span>" + row.cells[2].innerText + "</span>";
+                            var title = reportName + "&nbsp;-&nbsp;" + reportTime;
+                            var allduel = row.cells[3].getElementsByTagName("a");
+                            var href = allduel[0].href;
+                            var onclick_pattern = /\?DuellId=([^&]*)/;
+                            var result = onclick_pattern.exec(href);
+                            newCheckbox.setAttribute("name", rValue.Text_Checkbox + "[" + j + "]");
+                            newCheckbox.setAttribute("id", rValue.Text_Checkbox + "[" + j + "]");
+                            newCheckbox.setAttribute("value", result[1]);
+                            newCheckbox.setAttribute("href", href);
+                            newCheckbox.setAttribute("title", title);
+                            newCheckbox.setAttribute("reportname", reportName);
+                            newCheckbox.setAttribute("reporttime", reportTime);
+                            newCheckbox.setAttribute("c0", row.cells[0].innerHTML.replace("<hr>"," <b>对战</b> "));
+                            newCheckbox.setAttribute("c1", row.cells[1].innerHTML);
+                            newCheckbox.setAttribute("maxLevel", 1);
+                            row.cells[0].insertBefore(newCheckbox, row.cells[0].firstChild);
+                       }
+                        else
+                        {
+                            var reportName = "<span>" + row.cells[1].firstChild.innerHTML + "</span>";
+                            var reportTime = "<span>" + row.cells[0].firstChild.innerHTML + "</span>";
+                            var title = reportName + "&nbsp;-&nbsp;" + reportTime;
+                            var allInput = row.cells[2].getElementsByTagName("input");
+                            var id = "";
+                            var index = "";
+                            for (var k = 0; k < allInput.length; ++k) {
+                                var input = allInput[k];
+                                var name = input.getAttribute("name");
+                                var value = input.getAttribute("value");
+                                if (name.indexOf("report_id") != -1) {
+                                    var Result = rValue.Pattern_idNumber.exec(name);
+                                    index = Number(Result[1]);
+                                    id = value;
+                                    break;
+                                }
                             }
+                            newCheckbox.setAttribute("name", rValue.Text_Checkbox + "[" + index + "]");
+                            newCheckbox.setAttribute("id", rValue.Text_Checkbox + "[" + index + "]");
+                            newCheckbox.setAttribute("value", id);
+                            newCheckbox.setAttribute("title", title);
+                            newCheckbox.setAttribute("reportname", reportName);
+                            newCheckbox.setAttribute("reporttime", reportTime);
+                            newCheckbox.setAttribute("maxLevel", 1);
+                            newCheckbox.setAttribute(rValue.Text_Item, rValue.Text_Item + "%5B" + index + "%5D");
+                            newCheckbox.setAttribute(rValue.Text_Stat, rValue.Text_Stat + "%5B" + index + "%5D");
+                            row.cells[0].insertBefore(newCheckbox, row.cells[0].firstChild);
                         }
-                        newCheckbox.setAttribute("name", rValue.Text_Checkbox + "[" + index + "]");
-                        newCheckbox.setAttribute("id", rValue.Text_Checkbox + "[" + index + "]");
-                        newCheckbox.setAttribute("value", id);
-                        newCheckbox.setAttribute("title", title);
-                        newCheckbox.setAttribute("reportname", reportName);
-                        newCheckbox.setAttribute("reporttime", reportTime);
-                        newCheckbox.setAttribute("maxLevel", 1);
-                        newCheckbox.setAttribute(rValue.Text_Item, rValue.Text_Item + "%5B" + index + "%5D");
-                        newCheckbox.setAttribute(rValue.Text_Stat, rValue.Text_Stat + "%5B" + index + "%5D");
-                        row.cells[0].insertBefore(newCheckbox, row.cells[0].firstChild);
                     }
                 }
                 break;
@@ -4013,6 +4152,7 @@
 	}
 	
     try {
+        isDuel = (window.location.href.indexOf("duell.php") > 0);
         Main();
         ReprotMain();
 		//filterMain();
