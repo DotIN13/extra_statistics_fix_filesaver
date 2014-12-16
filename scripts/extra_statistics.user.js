@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.17
+// @version			2.18
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -532,6 +532,7 @@
 		this._Node.appendChild(bar);
         var tabDivs = [];
 		var isFirst = true;
+        debugger;
 		for (var i = 0; i < this._gInfoList.length; ++i)
 		{
 			var infoNode = this._gInfoList[i].Show(isExport);
@@ -1360,6 +1361,9 @@
 			setText: function(text) {
 				this._text = text;
 			},
+			setKind: function(kind) {
+				this._nKind = kind;
+			},
 			toHTMLNode: function() {
 				return document.createTextNode(this._text);
 			}
@@ -1399,6 +1403,11 @@
                     this._nKind = CActionType.WAIT;
 					this.setText(Local.TextList_WaitType);
 				}
+                else if(this._sType.indexOf("(") > -1 )
+                {
+                    this._nKind = CActionType.ATTACK2;
+					this.setText("其他");
+                }
 			}
         }
     });
@@ -1406,7 +1415,7 @@
     CActionType.HEAL = 1;
     CActionType.BUFF = 2;
     CActionType.WAIT = 3;
-
+    CActionType.ATTACK2 = 4;
 	// hit type
     var CHitType = DefineClass({
         extend: CTypeKey,
@@ -1538,6 +1547,9 @@
             },
 			toText: function() {
 				return this._Name;
+            },
+			setText: function(name) {
+				this._Name = name;
 			}
         }
     });
@@ -2491,7 +2503,10 @@
                 case CActionType.ATTACK: // Attack
                     {
                         var PassiveColumn = node_after(ActiveColumn);
-                        GetAttackedInfo(PassiveColumn, Info);
+                        if(PassiveColumn)
+                        	GetAttackedInfo(PassiveColumn, Info);
+                        else
+                            Info.Active.ActionType
                         break;
                     }
                 case CActionType.HEAL: // Heal
@@ -2589,11 +2604,22 @@
             // \1	other action
             var Patt_Action2 = Local.Pattern_Active_Action2;
             result = Patt_Action2.exec(Str);
+            //debugger;
             if (result == null) {
                 DbgMsgAction(Info, "ActiveInfo (Action2): " + Node.innerHTML);
                 return false;
             }
-            active.ActionType = new CActionType(result[1]);
+            if(result[3] != null)
+            {
+                active.ActionType.setKind(CActionType.ATTACK);
+                active.ActionType.setText("");
+                active.gAttackRoll = [];
+                active.gAttackRoll.push(Number(result[3]));
+                active.gPosition.push(new CPositionType(""));
+                active.Skill = new CSkill(null);
+            }
+            else
+            	active.ActionType = new CActionType(result[1]);
             return true;
         }
         if (result[1] != null) {
@@ -2603,7 +2629,9 @@
                 return false;
             }
             nStartNode += 1;
+
             Str = Str.substring(result[0].length);
+
         } else {
             active.ActionType = new CActionType(result[2]);
             if (active.ActionType.GetKind() !== CActionType.HEAL && active.ActionType.GetKind() !== CActionType.BUFF) {
@@ -2627,6 +2655,7 @@
                     // \5	MP
                     // \6	item list
                     // \7   HP
+					//debugger;
                     var Patt_ActtackDetails = Local.Pattern_Active_AttackDetails;
                     result = Patt_ActtackDetails.exec(Str);
                     if (result == null) {
@@ -2889,8 +2918,8 @@
         /^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?/],
         Pattern_Active_Action1: [/^\s*(?:([A-Za-z][A-Za-z ]+[A-Za-z]) +\(|([A-Za-z][A-Za-z ]+[A-Za-z]) +<a .*?>.*?<\/a>(?:( \()|$| on $))/,
         /^\s*(?:([^\u0000-\u007F]+) +\(|([^\u0000-\u007F]+)<a .*?>.*?<\/a>(?:( \()|$|给$))/],
-        Pattern_Active_Action2: [/^\s*([\S].*[\S])\s*$/,
-        /^\s*([\S].*[\S])\s*$/],
+        Pattern_Active_Action2: [/^\s*([\S][^/(^/)]*[\S])([/(]([\d]+)[/)])?\s*$/,
+        /^\s*([\S][^/(^/)]*[\S])([/(]([\d]+)[/)])?\s*$/],
         Pattern_Active_AttackDetails: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
         /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气)<\/span>)?(\/(?:<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) 法力(?:<\/b>)?<\/span>)?\)$/],
         Pattern_Active_HealBuffDetails: [/^(?:<span .*?>([\d]+) MP<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
@@ -3049,6 +3078,7 @@
         GM_addStyle(Style);
 
         // Add buttons
+        debugger;
         var KeyButton = AddButtonBesideDisabledButton(
 			[Local.OrigText_Button_DungeonDetails, Local.Text_Button_ExtraStat, OnCountStat], [Local.OrigText_Button_DungeonStat, Local.Text_Button_EntireStat, OnCountEntireStat], [Local.OrigText_Button_DuelDetails, Local.Text_Button_ExtraStat, OnCountStat]);
         if (KeyButton === null) return;
@@ -4154,7 +4184,7 @@
     try {
         isDuel = (window.location.href.indexOf("duell.php") > 0);
         Main();
-        ReprotMain();
+        //ReprotMain();
 		//filterMain();
     } catch (e) {
         alert("Main(): " + e);
