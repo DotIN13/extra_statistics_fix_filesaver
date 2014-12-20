@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.18
+// @version			2.19
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -4184,7 +4184,7 @@
     try {
         isDuel = (window.location.href.indexOf("duell.php") > 0);
         Main();
-        //ReprotMain();
+        ReprotMain();
 		//filterMain();
     } catch (e) {
         alert("Main(): " + e);
