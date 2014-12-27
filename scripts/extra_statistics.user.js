@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.20
+// @version			2.21
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -3170,7 +3170,8 @@
                 if (XmlHttp.readyState == 4 && XmlHttp.status == 200) {
                     var Page = document.createElement("div");
                     Page.innerHTML = XmlHttp.responseText;
-					Stat.iscurrentPage = false;
+					
+                    Stat.iscurrentPage = false;
                     ReadPage(Page, bFirstRead);
                 }
             } catch (e) {
@@ -3535,7 +3536,8 @@
 			var copyDiv = document.createElement("div");
 			copyDiv.innerHTML = gResponseDiv.innerHTML;
 			multiPageDiv.push(copyDiv);
-			Stat.iscurrentPage = false;
+			if(includeData)
+            	Stat.iscurrentPage = false;
 		}
 		else
 			multiPageDiv.push(gResponseDiv);
@@ -3553,7 +3555,8 @@
 				var theFileName = gCurrentReport.value + "/level" + nLevel + ".html";
 				if (i > 0) {
 					theFileName = gCurrentReport.value + "/level" + nLevel + "_" + (i+1) + ".html";
-					Stat.iscurrentPage = false;
+					if(includeData)
+                    	Stat.iscurrentPage = false;
 				}
 				if(includeData)
 				{
