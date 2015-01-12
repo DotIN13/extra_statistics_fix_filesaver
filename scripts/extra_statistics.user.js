@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.22
+// @version			2.23
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -2922,7 +2922,7 @@
         Pattern_Active_Action2: [/^\s*([\S][^/(^/)]*[\S])([/(]([\d]+)[/)])?\s*$/,
         /^\s*([\S][^/(^/)]*[\S])([/(]([\d]+)[/)])?\s*$/],
         Pattern_Active_AttackDetails: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
-        /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气|灵能|动力)<\/span>)?(\/(?:<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) [法力|神力|怒气|灵能|动力](?:<\/b>)?<\/span>)?\)$/],
+        /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气|灵能|动力)<\/span>)?(\/(?:<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) [?:法力|神力|怒气|灵能|动力](?:<\/b>)?<\/span>)?\)$/],
         Pattern_Active_HealBuffDetails: [/^(?:<span .*?>([\d]+) MP<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
         /^(?:<span .*?>(?:-|\+)?([\d]+) (?:法力|神力|怒气|灵能|动力)<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*))?\)(?:给)?$/],
         Pattern_Passive_Attacked: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[A-Za-z ]+<\/span>( - [A-Za-z ]+)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[A-Za-z ]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/,
