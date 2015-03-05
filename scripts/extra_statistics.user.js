@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.23
+// @version			2.24
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -2903,8 +2903,8 @@
         "层数"],
         OrigText_LastRound: ["Last round:",
         "最后回合:"],
-        OrigTextList_AttackActionType: [["attacks", "ranged attacks", "attacks with magic", "socially attacks", "cunningly attacks", "activates on", "works as a force of nature upon", "infected", "casts an explosion at", "deactivated", "magic projectile", "curse", "scare"],
-        ["近战攻击", "远程攻击", "魔法攻击", "心理攻击", "偷袭", "触发", "作为自然灾害", "散布", "制造爆炸", "解除", "魔法投射", "诅咒", "恐吓", "冲击"]],
+        OrigTextList_AttackActionType: [["attacks", "ranged attacks", "attacks with magic", "socially attacks", "cunningly attacks", "activates on", "works as a force of nature upon", "infected", "casts an explosion at", "deactivated", "magic projectile", "curse", "scare","other"],
+        ["近战攻击", "远程攻击", "魔法攻击", "心理攻击", "偷袭", "触发", "作为自然灾害", "散布", "制造爆炸", "解除", "魔法投射", "诅咒", "恐吓", "冲击","魔法弹"]],
         OrigTextList_HealActionType: [["heals with"],
         ["治疗"]],
         OrigTextList_BuffActionType: [["uses", "summons with"],
@@ -2922,7 +2922,7 @@
         Pattern_Active_Action2: [/^\s*([\S][^/(^/)]*[\S])([/(]([\d]+)[/)])?\s*$/,
         /^\s*([\S][^/(^/)]*[\S])([/(]([\d]+)[/)])?\s*$/],
         Pattern_Active_AttackDetails: [/^<a .*?>.*?<\/a>(?:\/([\d]+)|(?:\/([A-Za-z ]+): ([\d]+))+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\)$/,
-        /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气|灵能|动力)<\/span>)?(\/(?:<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) [?:法力|神力|怒气|灵能|动力](?:<\/b>)?<\/span>)?\)$/],
+        /^<a .*?>.*?<\/a>(?:\/([\d]+)|((?:\/([^\u0000-\u007F]+): ([\d]+))+))(?:\/<span .*?>([\d]+) (?:法力|神力|怒气|灵能|动力)<\/span>)?(\/(?:<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) HP(?:<\/b>)?<\/span>)?(?:\/<span .*?>(?:<b>)?(?:-|\+)([\d]+) (?:法力|神力|怒气|灵能|动力)(?:<\/b>)?<\/span>)?\)$/],
         Pattern_Active_HealBuffDetails: [/^(?:<span .*?>([\d]+) MP<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)|(<a .*?>.*?<\/a>\s+(?:<img .*?>)+))?\)(?: on )?$/,
         /^(?:<span .*?>(?:-|\+)?([\d]+) (?:法力|神力|怒气|灵能|动力)<\/span>)?(?:\/)?(?:((<a .*?>.*?<\/a>\s*(?:<img .*?>)*,)*<a .*?>.*?<\/a>\s*(?:<img .*?>)*))?\)(?:给)?$/],
         Pattern_Passive_Attacked: [/^(<span .*?>)?<a .*?>.*?<\/a>(?:<span .*?>([\d]+)<\/span>)?(?:<img .*?><\/span>)?\s*\((<a .*?>.*?<\/a>\/)?([\d]+)(?:\/<span .*?>([\d]+) MP<\/span>)?(\/(?:<a .*?>.*?<\/a>,)*<a .*?>.*?<\/a>)?\): <span class="([A-Za-z_]+)">[A-Za-z ]+<\/span>( - [A-Za-z ]+)?(<br>(?:<span .*?>)?(?:-)?[\d]+ (?:\[(?:\+|-)[\d]+\] )?[A-Za-z ]+(?:<img .*?><\/span>)?)*(?:<br><a .*?>.*?<\/a> -([\d]+) HP)?(?:(<br>)|$)/,
