@@ -3740,8 +3740,9 @@
 		{
 			var scriptStr = script.firstChild.data;
 			var result = scriptPatten.exec(scriptStr);
-			if(result[1] && result[2])
-				scriptStr = "window.onload = function(e){" + result[1] + result[2] + "}";
+			if(result != null)
+				if(result[1] && result[2])
+					scriptStr = "window.onload = function(e){" + result[1] + result[2] + "}";
 			
 			scriptStr = scriptStr.replace(/wodInitialize\(''/g, "wodInitialize('" + location.host + "'").replace("'0'","'1'");
 			scriptStr += '\nfunction o(t,n){ \n var url="' + location.origin + '/wod/spiel/";\n';
