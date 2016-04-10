@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.24.1
+// @version			2.24.2
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -3464,7 +3464,9 @@
 		var indexStr = '<html>\n' + headDiv.outerHTML + '\n<body>\n<h1>' + gTitle + '</h1><br/>\n' + gIndexDiv.innerHTML + '\n</body>\n</html>';
 		gZip.file("index.html", indexStr);
 		var blob = gZip.generate({
-			type: "blob"
+			type: "blob",
+            compression: "DEFLATE",
+            compressionOptions : {level:7}
 		});
 		saveAs(blob, "wodlog" + '_' + Math.random().toString(36).substr(2, 9) + ".zip");
 		alert('zip文件生成完毕');
