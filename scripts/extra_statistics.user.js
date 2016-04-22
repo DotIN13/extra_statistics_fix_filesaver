@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.24.2
+// @version			2.24.3
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -3463,12 +3463,13 @@
 		infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + gCurrentReport.getAttribute("title");
 		var indexStr = '<html>\n' + headDiv.outerHTML + '\n<body>\n<h1>' + gTitle + '</h1><br/>\n' + gIndexDiv.innerHTML + '\n</body>\n</html>';
 		gZip.file("index.html", indexStr);
-		var blob = gZip.generate({
-			type: "blob",
+        gZip.generateAsync({
+            type: "blob",
             compression: "DEFLATE",
             compressionOptions : {level:7}
-		});
-		saveAs(blob, "wodlog" + '_' + Math.random().toString(36).substr(2, 9) + ".zip");
+        }).then(function (content) {
+            saveAs(content,  "wodlog" + '_' + Math.random().toString(36).substr(2, 9) + ".zip");
+        });
 		alert('zip文件生成完毕');
 		infodiv.innerHTML = "";
 		gResponseDiv.innerHTML = "";
@@ -3641,10 +3642,13 @@
                     infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + "生成Zip文件";
                     var indexStr = '<html>\n' + headDiv.outerHTML + '\n<body>\n<h1>' + gTitle + '</h1><br/>\n' + gIndexDiv.innerHTML + '\n</body>\n</html>';
                     gZip.file("index.html", indexStr);
-                    var blob = gZip.generate({
-                        type: "blob"
+                    gZip.generateAsync({
+                        type: "blob",
+                        compression: "DEFLATE",
+                        compressionOptions : {level:7}
+                    }).then(function (content) {
+                        saveAs(content,  "wodlog" + '_' + Math.random().toString(36).substr(2, 9) + ".zip");
                     });
-                    saveAs(blob, "wodlog" + '_' + Math.random().toString(36).substr(2, 9) + ".zip");
                     alert('zip文件生成完毕');
                     infodiv.innerHTML = "";
                     gResponseDiv.innerHTML = "";
