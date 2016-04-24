@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.24.3
+// @version			2.25.0
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -43,7 +43,7 @@
                     break;
                 }
             }
-            if (langText == null)
+            if (langText === null)
                 return false;
 
             switch (langText) {
@@ -57,7 +57,7 @@
         }
 
         var nLangId = GetLanguageId();
-        if (nLangId == null)
+        if (nLangId === null)
             return null;
 
         if (Contents instanceof Object) {
@@ -82,7 +82,7 @@
         for (var i = 2; i < arguments.length; ++i)
             HTML += ' ' + arguments[i][0] + '="' + arguments[i][1] + '"';
 
-        HTML += (Content != null && Content != "") ? ('>' + Content + '</' + Name + '>') : (' />');
+        HTML += (Content != null && Content !== "") ? ('>' + Content + '</' + Name + '>') : (' />');
 
         return HTML;
     }
@@ -109,8 +109,8 @@
     function getSum(numArr) {
         var nTotal = 0;
         for (var i = 0; i < numArr.length; i++) {
-            nTotal = nTotal + Number(numArr[i])
-        };
+            nTotal = nTotal + Number(numArr[i]);
+        }
         return nTotal;
     }
 
@@ -122,13 +122,13 @@
 
     function getVariance(numArr) {
         if (numArr.length <= 1) {
-            return 0
-        };
+            return 0;
+        }
         var nAvg = getAverage(numArr);
         var nTempSum = 0;
         for (var i = 0; i < numArr.length; i++) {
             nTempSum = nTempSum + Math.pow((Number(numArr[i]) - nAvg), 2);
-        };
+        }
         return (nTempSum / (numArr.length - 1));
     }
 
@@ -428,44 +428,54 @@
     // CLASSES ////////////////////////////////////////////////////////////////////
 
     // NextNode: the node next to the statistics node when it is created
-    function CStat(NextNode,reportInfoDiv) {
+    function CStat(NextNode,InfoDiv) {
         this._HTML = '';
-		this._reportInfoDiv = reportInfoDiv;
+		this._reportInfoDiv = InfoDiv;
         this._gInfoList = [];
 		this.iscurrentPage = true;
-		
+
         this.nTotalPages = 0;
         this.nReadPages = 0;
+        this.nReadRows = 0;
+        this.nTotalRows = 0;
+        debugger;
         this.setNode = function(newNode) {
-            if(this._Node)
-			{
-				var divs = newNode.parentNode.getElementsByTagName('div');
-				for(var i=0; i<divs.length;i++)
-				{
-					if(divs[i].id == "stat_all")
-					{
-						newNode.parentNode.removeChild(divs[i]);
-						break;
-					}
-				}
-			}
-			var NewSection = document.createElement("div");
-            NewSection.id = "stat_all";
-			NewSection.className = "stat_all tab";
-            if (newNode.parentNode)
-                this._Node = newNode.parentNode.insertBefore(NewSection, newNode);
-            else {
-                this._Node = NewSection;
-                newNode.appendChild(NewSection);
+            if(newNode.id == "stat_all")
+            {
+                this._Node = newNode;
+                this._Node.innerHTML = '';
+            }
+            else
+            {
+                if(this._Node)
+                {
+                    var divs = newNode.parentNode.getElementsByTagName('div');
+                    for(var i=0; i<divs.length;i++)
+                    {
+                        if(divs[i].id == "stat_all")
+                        {
+                            newNode.parentNode.removeChild(divs[i]);
+                            break;
+                        }
+                    }
+                }
+
+                var NewSection = document.createElement("div");
+                NewSection.id = "stat_all";
+                NewSection.className = "stat_all tab";
+                if (newNode.parentNode)
+                    this._Node = newNode.parentNode.insertBefore(NewSection, newNode);
+                else {
+                    this._Node = NewSection;
+                    newNode.appendChild(NewSection);
+                }
             }
 			this._HTML = '';
         };
         this.setNode(NextNode);
-		this._reportInfoDiv.appendChild(document.createElement('table'));
+        this._reportInfoDiv.appendChild(document.createElement('table'));
     }
 
-	
-	
     CStat.prototype._Write = function(Text) {
         this._HTML += Text;
     };
@@ -497,7 +507,7 @@
 		tab.className = 'not_selected';
 		var title = Local.Text_Button_ShowAll;
 		var id = 'showall';
-		if(showhide == true)
+		if(showhide === true)
 		{
 			title = Local.Text_Button_ShowAll;
 			id = 'showall';
@@ -537,6 +547,7 @@
 		{
 			var infoNode = this._gInfoList[i].Show(isExport);
 			var tab = this._gInfoList[i].getTab(isExport);
+            debugger;
 			if(tab && infoNode)
 			{
 				tabs.appendChild(tab);
@@ -558,17 +569,30 @@
 		tabs.appendChild(this.getTab(isExport,true));
 		tabs.appendChild(this.getTab(isExport,false));
 		this._Node.setAttribute('tabs',tabDivs.join(','));
-		this._Node.appendChild(document.createElement('hr'));
-		if(!this.iscurrentPage)
-		{
-			this._reportInfoDiv.style.display = 'none';
-			this._Node.appendChild(this._reportInfoDiv);
-		}
+        if(!isExport)
+        {
+            this._Node.appendChild(document.createElement('hr'));
+            this.ShowProgress();
+        }
+		//this._reportInfoDiv.parentNode.removeChild(this._reportInfoDiv);
 	};
 
     CStat.prototype.ShowProgress = function() {
-        this._Node.innerHTML = '<hr /><h1>' + Local.Text_Loading + ' (' +
-            this.nReadPages + '/' + this.nTotalPages + ') ...</h1><hr />';
+        var widthP = 1;
+        var currentP = 1;
+        //debugger;
+        if(reportInfoDiv)
+        {
+            if(this.nReadPages < 1)
+                currentP = 1;
+            else
+                currentP = this.nReadPages
+            if(this.nTotalPages === 0 || this.nTotalRows === 0)
+                widthP = 1;
+            else
+                widthP = parseInt(((currentP - 1) / this.nTotalPages + this.nReadRows/(this.nTotalRows * this.nTotalPages)) * 100);
+            reportInfoDiv.style.width = widthP + '%';
+        }
     };
 
     CStat.prototype._AddEvents = function() {
@@ -624,7 +648,7 @@
 			}
 
 		}
-	}
+	};
 
     ///////////////////////////////////////////////////////////////////////////////
     function CTable(Title, Id, nColumns, isExport) {
@@ -767,7 +791,10 @@
 						var c = checkboxs[ti];
 						c.id = tableid + '_checkbox_' + i + '_' + ti;
 						if(this._isExport)
+                        {
 							c.setAttribute('onclick',"cf('" + tableid + "','" + this._filterId + "');");
+                            c.setAttribute('checked','');
+                        }
 						else
 							c.addEventListener("click", FactoryFilter(tableid,this._filterId), false);						
 					}
@@ -815,8 +842,10 @@
 					else
 					{
 						var input = document.createElement("input");
+                        var textid = this._filterId + "_textbox_" + i ;
 						input.type = "text";
 						input.size = 6;
+                        input.id = textid;
 						cell.appendChild(input);
 					}
 				}
@@ -921,9 +950,10 @@
 				numbers.push(numberres[2]);
 		}
 		return numbers;
-	}
+	};
 	CTable.OnChangeFilter = function(tableId,filterRowId) {
 		try {
+            debugger;
             var Table = document.getElementById(tableId);
 			var filterRow = document.getElementById(filterRowId);
 			var stringfilters = [];
@@ -992,7 +1022,7 @@
 				}
 				if(show)
 				{
-					for(fi=0;fi<numberfilters.length;fi++)
+					for(var fi=0;fi<numberfilters.length;fi++)
 					{
 						var nfilter = numberfilters[fi];
 						
@@ -1014,9 +1044,11 @@
 									{
 										op = res[1];
 										if(res[3])
-										if( op == "[") op = ">=";
-										if( op == "(") op = ">";
-										if( op == "=") op = "==";
+                                        {
+                                            if( op == "[") op = ">=";
+                                            if( op == "(") op = ">";
+                                            if( op == "=") op = "==";
+                                        }
 									}
 									else
 									{
@@ -1029,7 +1061,7 @@
 										op = "<=";
 										if(res[4])
 										{
-											op = res[4]
+											op = res[4];
 											if( op == "]") op = "<=";
 											if( op == ")") op = "<";
 										}
@@ -1092,7 +1124,7 @@
 		var Table = document.getElementById(tableId);
 		var index = numberIndex;
 		var ths = Table.getElementsByTagName("th");
-		if(index == null)
+		if(index === null)
 			index = 0;
 		var th = ths[columnIndex];
 		var order = th.getAttribute("order");
@@ -1126,9 +1158,9 @@
 
 				if(columnIndex == ths.length -1)
 				{
-					var n1 = Number(row_1.getAttribute("oriorder"));
-					var n2 = Number(row_2.getAttribute("oriorder"));
-					change = n1>n2;
+					var n11 = Number(row_1.getAttribute("oriorder"));
+					var n12 = Number(row_2.getAttribute("oriorder"));
+					change = n11>n12;
 				}
 				else
 				{
@@ -1159,13 +1191,13 @@
 					row_2.parentNode.insertBefore(row_2,row_1);
 					row_2_info.parentNode.insertBefore(row_2_info,row_1);
 				}
-			}			
+			}
 			Table.rows[i].className = "row" + (i/2) % 2;
 			Table.rows[i+1].className = Table.rows[i].className;
 		}
 		th.setAttribute("order",-1*order);
 	};
-    
+
 	CTable.OnShowDetail = function(rowid,activeRows)
 	{
 		var row = document.getElementById(rowid);
@@ -1189,7 +1221,7 @@
 			{
 				if(activeRows.length > 0)
 				{
-					debugger;
+					//debugger;
 					var ids = activeRows[0].split('_');
 					var level = Number(ids[1]);
 					var ac = table.insertRow(-1).insertCell(-1);
@@ -1220,7 +1252,7 @@
 
 		}
 		
-	}
+	};
 	///////////////////////////////////////////////////////////////////////////////
     function CActiveInfo() {
         this.nIniRoll;
@@ -1263,7 +1295,7 @@
 		this.toString = function()
 		{
 			return this.nLevel + '_' + this.nRoom + '_' + this.nRound + '_' + this.nRow;
-		}
+		};
     }
 
 
@@ -1313,7 +1345,7 @@
             },
             compareTo: function(that) {
                 var result = this._gKey.length - that._gKey.length;
-                if (result !== 0)
+                if (result != 0)
                     return result;
 
                 var i = 0;
@@ -1789,7 +1821,7 @@
                 this._nSTDValue = getSTD(this._nValue);
             },
 			sortValue: function(value) {
-				return value.sort(function(a, b){return b - a});
+				return value.sort(function(a, b){return b - a;});
 			}
         }
     });
@@ -1846,7 +1878,7 @@
 				var cell = table.insertRow(-1).insertCell(-1);
 				cell.style.textAlign = 'center';
 				cell.colSpan="3";
-				this.nSorting.sort(function(a, b){return b[0]-a[0]});
+				this.nSorting.sort(function(a, b){return b[0]-a[0];});
                 for (var i = 0; i < this.nSorting.length; ++i) {
 					var ret = document.createElement("span");
 					ret.className = "pair_value";
@@ -1952,40 +1984,40 @@
                 default:
                     return document.createTextNode(this.Name);
             }
-        }
+        };
     }
 
     CKeyType.AvgRoll = function(legend) {
         return new CKeyType(Local.Text_Table_AvgRoll, "number",legend);
-    }
+    };
 
     CKeyType.Times = function(legend) {
         return new CKeyType(Local.Text_Table_Times, "number",legend);
-    }
+    };
 
     CKeyType.MaxRoll = function(legend) {
         return new CKeyType(Local.Text_Table_MaxRoll, "number",legend);
-    }
+    };
 
     CKeyType.MinRoll = function(legend) {
         return new CKeyType(Local.Text_Table_MinRoll, "number",legend);
-    }
+    };
 
     CKeyType.STDRoll = function(legend) {
         return new CKeyType(Local.Text_Table_STDRoll, "number",legend);
-    }
+    };
 
     CKeyType.TotalRoll = function(legend) {
         return new CKeyType(Local.Text_Table_Total, "number",legend);
-    }
+    };
 	
     CKeyType.RollList = function(legend) {
         return new CKeyType(Local.Text_Table_RollList, "button",legend);
-    }
+    };
 
     CKeyType.DetailList = function(legend) {
         return new CKeyType(Local.Text_Table_DetailList, "button",legend);
-    }
+    };
 
     CKeyType.Char = function(legend) {
         var _legend = legend;
@@ -2010,59 +2042,59 @@
 		}
 		
 		return new CKeyType(Local.Text_Table_Char, "string",_legend);
-    }
+    };
 	
 	CKeyType.ProviderChar = function(legend) {
         return new CKeyType(Local.Text_Table_Buffer, "string",legend);
-    }
+    };
 
 	CKeyType.ReceiverChar = function(legend) {
         return new CKeyType(Local.Text_Table_BuffeReceiver, "string",legend);
-    }
+    };
 
     CKeyType.AttackType = function(legend) {
         return new CKeyType(Local.Text_Table_AttackType, "string",legend);
-    }
+    };
 
     CKeyType.Skill = function(legend) {
         return new CKeyType(Local.Text_Table_Skill, "string",legend);
-    }
+    };
 
     CKeyType.Item = function(legend) {
         return new CKeyType(Local.Text_Table_Item, "string",legend);
-    }
+    };
 
     CKeyType.Position = function(legend) {
         return new CKeyType(Local.Text_Table_Position, "string",legend);
-    }
+    };
 
     CKeyType.HealType = function(legend) {
         return new CKeyType(Local.Text_Table_HealType, "string",legend);
-    }
+    };
 
     CKeyType.BuffType = function(legend) {
         return new CKeyType(Local.Text_Table_BuffType, "string",legend);
-    }
+    };
 	
     CKeyType.DamageType = function(legend) {
         return new CKeyType(Local.Text_Table_DamageType, "string",legend);
-    }
+    };
 
     CKeyType.DefenceType = function(legend) {
         return new CKeyType(Local.Text_Table_DefenceType, "string",legend);
-    }
+    };
 
     CKeyType.ItemDamagePoints = function(legend) {
         return new CKeyType(Local.Text_Table_ItemDamagePoints, "string",legend);
-    }
+    };
 
     CKeyType.ValueName = function(legend) {
         return [CKeyType.AvgRoll(legend), CKeyType.Times(), CKeyType.MaxRoll(legend), CKeyType.MinRoll(legend), CKeyType.STDRoll(legend), CKeyType.RollList()];
-    }
+    };
 
 	CKeyType.TotalValueName = function(legend) {
         return [CKeyType.TotalRoll(legend),CKeyType.AvgRoll(legend), CKeyType.Times(), CKeyType.MaxRoll(legend), CKeyType.MinRoll(legend), CKeyType.STDRoll(legend), CKeyType.RollList()];
-    }
+    };
 
     var CInfoList = DefineClass({
         construct: function(CValueList, Title, Id, gKeyName, gValueName) {
@@ -2482,7 +2514,10 @@
 
         var Navi = new CNavi(nLevel, nCurrRepPage, 0, 0);
         var allRows = page.getElementsByTagName("tr");
+        //debugger;
+        Stat.nTotalRows = allRows.length;
         for (var i = 0; i < allRows.length; ++i) {
+            Stat.nReadRows = i+1;
             var Info = new CActionInfo(Navi);
             var IniColumn = first_child(allRows[i]);
             if (!GetIniInfo(IniColumn, Info))
@@ -2505,16 +2540,25 @@
                         var PassiveColumn = node_after(ActiveColumn);
                         if(PassiveColumn)
                         	GetAttackedInfo(PassiveColumn, Info);
-                        else
-                            Info.Active.ActionType
                         break;
                     }
                 case CActionType.HEAL: // Heal
+                    {
+                        if(includeFilter.Healed)
+                        {
+                            var PassiveColumn = node_after(ActiveColumn);
+                            GetHealedBuffedInfo(PassiveColumn, Info);
+                            break;
+                        }
+                    }
                 case CActionType.BUFF: // Buff
                     {
-                        var PassiveColumn = node_after(ActiveColumn);
-                        GetHealedBuffedInfo(PassiveColumn, Info);
-                        break;
+                        if(includeFilter.Buffed)
+                        {
+                            var PassiveColumn = node_after(ActiveColumn);
+                            GetHealedBuffedInfo(PassiveColumn, Info);
+                            break;
+                        }
                     }
                 case CActionType.WAIT: // Wait
                 default: // Unknown
@@ -2552,27 +2596,31 @@
         if (Node.innerHTML == "&nbsp;")
             return true;
 
-        // \1	ini
-        // \2	current action
-        // \3	total actions
-        var Patt_Ini = Local.Pattern_Ini;
-        var result = Patt_Ini.exec(Node.innerHTML);
-        if (result == null) {
-            DbgMsgAction(Info, "IniInfo: " + Node.innerHTML);
-            return false;
-        }
+        if(includeFilter.Init)
+        {
+            // \1	ini
+            // \2	current action
+            // \3	total actions
+            var Patt_Ini = Local.Pattern_Ini;
+            var result = Patt_Ini.exec(Node.innerHTML);
+            if (result == null) {
+                DbgMsgAction(Info, "IniInfo: " + Node.innerHTML);
+                return false;
+            }
 
-        var active = Info.Active;
-        active.nIniRoll = Number(result[1]);
-        active.nCurrAction = Number(result[2]);
-        active.nTotalActions = Number(result[3]);
-        return active.nIniRoll != null;
+            var active = Info.Active;
+            active.nIniRoll = Number(result[1]);
+            active.nCurrAction = Number(result[2]);
+            active.nTotalActions = Number(result[3]);
+            return active.nIniRoll != null;
+        }
+        return false;
     }
 
 
     // return: whether the format is right
     function GetActiveInfo(Node, Info) {
-        if (Node == null) {
+        if (Node === null) {
             DbgMsgAction(Info, "ActiveInfo: null");
             return false;
         }
@@ -2584,7 +2632,7 @@
         // \2	npc Id
         var Patt_Char = Local.Pattern_Active_Char;
         var result = Patt_Char.exec(Str);
-        if (result == null) {
+        if (result === null) {
             DbgMsgAction(Info, "ActiveInfo (Char): " + Node.innerHTML);
             return true;
         }
@@ -2599,14 +2647,14 @@
         // \2	heal or buff
         // \3	left parenthesis
         var Patt_Action1 = Local.Pattern_Active_Action1;
-        debugger;
+        //debugger;
         result = Patt_Action1.exec(Str);
-        if (result == null) {
+        if (result === null) {
             // \1	other action
             var Patt_Action2 = Local.Pattern_Active_Action2;
             result = Patt_Action2.exec(Str);
             //debugger;
-            if (result == null) {
+            if (result === null) {
                 DbgMsgAction(Info, "ActiveInfo (Action2): " + Node.innerHTML);
                 return false;
             }
@@ -2640,7 +2688,7 @@
                 return false;
             }
             active.Skill = new CSkill(Node.childNodes[nStartNode + 1]);
-            if (result[3] == null)
+            if (result[3] === null)
                 return true;
             nStartNode += 3;
             Str = Str.substring(result[0].length);
@@ -2657,45 +2705,48 @@
                     // \6	item list
                     // \7   HP
 					//debugger;
-                    var Patt_ActtackDetails = Local.Pattern_Active_AttackDetails;
-                    result = Patt_ActtackDetails.exec(Str);
-                    if (result == null) {
-                        DbgMsgAction(Info, "ActiveInfo (ActtackDetails): " + Node.innerHTML);
-                        return false;
-                    }
-                    active.Skill = new CSkill(Node.childNodes[nStartNode]);
-                    active.gAttackRoll = [];
-                    active.gPosition = new CKeyList();
-                    if (result[1] != null) {
-                        active.gAttackRoll.push(Number(result[1]));
-                        active.gPosition.push(new CPositionType(''));
-                    };
-                    if (result[2] != null) {
-                        var pattern_pos_atk = /^([^\u0000-\u007F]+): ([\d]+)$/
-                        var gPos_Atk = result[2].split('/');
-                        for (var i = 1; i < gPos_Atk.length; ++i) {
-                            var inner_result = pattern_pos_atk.exec(gPos_Atk[i]);
-                            active.gAttackRoll.push(Number(inner_result[2]));
-                            active.gPosition.push(new CPositionType(inner_result[1]));
+                    if(includeFilter.Attack)
+                    {
+                        var Patt_ActtackDetails = Local.Pattern_Active_AttackDetails;
+                        result = Patt_ActtackDetails.exec(Str);
+                        if (result === null) {
+                            DbgMsgAction(Info, "ActiveInfo (ActtackDetails): " + Node.innerHTML);
+                            return false;
                         }
-                    }
-                    active.nSkillMP = result[5] != null ? Number(result[5]) : null;
-                    active.nSkillHP = result[7] != null ? Number(result[7]) : null;
-                    if (result[6] != null) {
-                        active.gItem = new CKeyList();
-                        nStartNode += result[5] != null ? 4 : 2;
-                        var ItemNode;
-                        while ((ItemNode = Node.childNodes[nStartNode]) != null) {
-                            if(ItemNode.tagName == 'A')
-							{
-								active.gItem.push(new CItem(ItemNode));
-								nStartNode += 2;
-							}
-							else
-							{
-								nStartNode++;
-							}
-                       }
+                        active.Skill = new CSkill(Node.childNodes[nStartNode]);
+                        active.gAttackRoll = [];
+                        active.gPosition = new CKeyList();
+                        if (result[1] != null) {
+                            active.gAttackRoll.push(Number(result[1]));
+                            active.gPosition.push(new CPositionType(''));
+                        }
+                        if (result[2] != null) {
+                            var pattern_pos_atk = /^([^\u0000-\u007F]+): ([\d]+)$/;
+                            var gPos_Atk = result[2].split('/');
+                            for (var i = 1; i < gPos_Atk.length; ++i) {
+                                var inner_result = pattern_pos_atk.exec(gPos_Atk[i]);
+                                active.gAttackRoll.push(Number(inner_result[2]));
+                                active.gPosition.push(new CPositionType(inner_result[1]));
+                            }
+                        }
+                        active.nSkillMP = result[5] != null ? Number(result[5]) : null;
+                        active.nSkillHP = result[7] != null ? Number(result[7]) : null;
+                        if (result[6] != null) {
+                            active.gItem = new CKeyList();
+                            nStartNode += result[5] != null ? 4 : 2;
+                            var ItemNode;
+                            while ((ItemNode = Node.childNodes[nStartNode]) != null) {
+                                if(ItemNode.tagName == 'A')
+                                {
+                                    active.gItem.push(new CItem(ItemNode));
+                                    nStartNode += 2;
+                                }
+                                else
+                                {
+                                    nStartNode++;
+                                }
+                            }
+                        }
                     }
                     return true;
                 }
@@ -2705,33 +2756,36 @@
                     // \1	MP
                     // \2	normal item list
                     // \3	magical potion
-					var Patt_HealBuffDetails = Local.Pattern_Active_HealBuffDetails;
-                    result = Patt_HealBuffDetails.exec(Str);
-                    if (result == null) {
-                        DbgMsgAction(Info, "ActiveInfo (HealBuffDetails): " + Node.innerHTML);
-                        return false;
-                    }
-                    active.nSkillMP = result[1] != null ? Number(result[1]) : null;
-                    if (result[2] != null) {
-                        active.gItem = new CKeyList();
-                        nStartNode += result[1] != null ? 2 : 0;
-                        var ItemNode;
-                        while ((ItemNode = Node.childNodes[nStartNode]) != null) {
-                            if(ItemNode.tagName == 'A')
-							{
-								active.gItem.push(new CItem(ItemNode));
-								nStartNode += 2;
-							}
-							else
-							{
-								nStartNode++;
-							}
+                    if((includeFilter.Heal && active.ActionType.GetKind() === CActionType.HEAL) || (includeFilter.Buff && active.ActionType.GetKind() === CActionType.BUFF))
+                    {
+                        var Patt_HealBuffDetails = Local.Pattern_Active_HealBuffDetails;
+                        result = Patt_HealBuffDetails.exec(Str);
+                        if (result === null) {
+                            DbgMsgAction(Info, "ActiveInfo (HealBuffDetails): " + Node.innerHTML);
+                            return false;
                         }
-                    } else if (result[3] != null) {
-                        active.gItem = new CKeyList();
-                        nStartNode += result[1] != null ? 2 : 0;
-                        active.gItem.push(new CItem(Node.childNodes[nStartNode]));
-                        // nStartNode: determine by the number of reagents
+                        active.nSkillMP = result[1] != null ? Number(result[1]) : null;
+                        if (result[2] != null) {
+                            active.gItem = new CKeyList();
+                            nStartNode += result[1] != null ? 2 : 0;
+                            var ItemNode;
+                            while ((ItemNode = Node.childNodes[nStartNode]) != null) {
+                                if(ItemNode.tagName == 'A')
+                                {
+                                    active.gItem.push(new CItem(ItemNode));
+                                    nStartNode += 2;
+                                }
+                                else
+                                {
+                                    nStartNode++;
+                                }
+                            }
+                        } else if (result[3] != null) {
+                            active.gItem = new CKeyList();
+                            nStartNode += result[1] != null ? 2 : 0;
+                            active.gItem.push(new CItem(Node.childNodes[nStartNode]));
+                            // nStartNode: determine by the number of reagents
+                        }
                     }
                     return true;
                 }
@@ -2743,7 +2797,7 @@
 
     // return: whether the format is right
     function GetAttackedInfo(Node, Info) {
-        if (Node == null) {
+        if (Node === null) {
             DbgMsgAction(Info, "AttackedInfo: null");
             return false;
         }
@@ -2766,7 +2820,7 @@
         while (!bEnd) {
             var PassiveInfo = new CPassiveInfo();
             var result = Patt_Attacked.exec(Str);
-            if (result == null) {
+            if (result === null) {
                 DbgMsgAction(Info, "AttackedInfo: " + Node.innerHTML);
                 return true;
             }
@@ -2830,7 +2884,7 @@
 
     // return: whether the format is right
     function GetHealedBuffedInfo(Node, Info) {
-        if (Node == null) {
+        if (Node === null) {
             DbgMsgAction(Info, "HealedBuffedInfo: null");
             return false;
         }
@@ -2848,7 +2902,7 @@
         while (!bEnd) {
             var PassiveInfo = new CPassiveInfo();
             var result = Patt_HealedBuffed.exec(Str);
-            if (result == null) {
+            if (result === null) {
                 DbgMsgAction(Info, "HealedBuffedInfo: " + Node.innerHTML);
                 return true;
             }
@@ -3033,40 +3087,88 @@
         "span.pair_value {width:100%; font-size:12px;} span.pair_value span {width:50%; min-width:3em; text-align:right; color:#F8A400;} span.pair_value span + span {color:#00CC00;} " +
         "table.pair_hero {width:100%; font-size:12px;} table.pair_hero td {width:50%; min-width:3em; text-align:right; color:#00CC00;} table.pair_hero td + td {color:#F8A400;} " +
         "table[hide] {display:none;} " +
-        "table.pair_value {width:100%;} table.pair_value td {width:50%; min-width:3em; text-align:right; color:#F8A400;} table.pair_value td + td {color:#00CC00;} ";
+        "table.pair_value {width:100%;} table.pair_value td {width:50%; min-width:3em; text-align:right; color:#F8A400;} table.pair_value td + td {color:#00CC00;} " + 
+        "#myProgress {position: relative; width: 100%;  height: 3px; background-color: #ddd;} " +
+        "#myBar { position: absolute;  width: 1%;  height: 100%;  background-color: #4CAF50;}";
 
     var Local;
     var Stat;
-	
+    var includeFilter = {
+        Init: true,
+        Attack: true,
+        Defence: true,
+        Damage: true,
+        Damaged: true,
+        Heal: false,
+        Healed: false,
+        Buff: false,
+        Buffed: false,
+        DamagedItems: true
+    };
 	var localInfo = document;
 	var reportInfoDiv;
+    var progress;
+    var dataPage;
 
     if (typeof(GM_addStyle) == 'undefined') {
         function GM_addStyle(styles) {
             var S = document.createElement('style');
             S.type = 'text/css';
             var T = '' + styles + '';
-            T = document.createTextNode(T)
+            T = document.createTextNode(T);
             S.appendChild(T);
             document.body.appendChild(S);
             return;
         }
     }
+    
+    var clickedButton;
 
     // FUNCTIONS //////////////////////////////////////////////////////////////////
     function CreateStat(node, infoNode,isExport) {
         // Stat initialization
+        includeFilter.Init = document.getElementById("chk_Text_Table_Ini").checked;
+        includeFilter.Attack = document.getElementById("chk_Text_Table_Attack").checked;
+        includeFilter.Defence = document.getElementById("chk_Text_Table_Defence").checked;
+        includeFilter.Damage = document.getElementById("chk_Text_Table_Damage").checked;
+        includeFilter.Damaged = document.getElementById("chk_Text_Table_Damaged").checked;
+        includeFilter.Heal = document.getElementById("chk_Text_Table_Heal").checked;
+        includeFilter.Healed = document.getElementById("chk_Text_Table_Healed").checked;
+        includeFilter.Buff = document.getElementById("chk_Text_Table_Buff").checked;
+        includeFilter.Buffed = document.getElementById("chk_Text_Table_Buffed").checked;
+        includeFilter.DamagedItems = document.getElementById("chk_Text_Table_DamagedItems").checked;
+
         var theStat = new CStat(node,infoNode);
-        theStat.RegInfoList(new CILIni(CVLNumber, isExport));
-        theStat.RegInfoList(new CILAttackRoll(CVLNumber, isExport));
-        theStat.RegInfoList(new CILDefenceRoll(CVLNumber, isExport));
-        theStat.RegInfoList(new CILDamage(CVLDamage, isExport));
-        theStat.RegInfoList(new CILDamaged(CVLDamage, isExport));
-        theStat.RegInfoList(new CILHeal(CVLNumber, isExport));
-        theStat.RegInfoList(new CILHealed(CVLNumber, isExport));
-        theStat.RegInfoList(new CILBuff(CVLString, isExport));
-        theStat.RegInfoList(new CILBuffed(CVLString, isExport));
-        theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
+
+        if(includeFilter.Init)
+            theStat.RegInfoList(new CILIni(CVLNumber, isExport));
+
+        if(includeFilter.Attack)
+            theStat.RegInfoList(new CILAttackRoll(CVLNumber, isExport));
+
+        if(includeFilter.Defence)
+            theStat.RegInfoList(new CILDefenceRoll(CVLNumber, isExport));
+
+        if(includeFilter.Damage)
+            theStat.RegInfoList(new CILDamage(CVLDamage, isExport));
+
+        if(includeFilter.Damaged)
+            theStat.RegInfoList(new CILDamaged(CVLDamage, isExport));
+
+        if(includeFilter.Heal)
+            theStat.RegInfoList(new CILHeal(CVLNumber, isExport));
+
+        if(includeFilter.Healed)              
+            theStat.RegInfoList(new CILHealed(CVLNumber, isExport));
+        
+        if(includeFilter.Buff)              
+            theStat.RegInfoList(new CILBuff(CVLString, isExport));
+        
+        if(includeFilter.Buffed)              
+            theStat.RegInfoList(new CILBuffed(CVLString, isExport));
+        
+        if(includeFilter.DamagedItems)              
+            theStat.RegInfoList(new CILItemDamage(CVLNumber, isExport));
         return theStat;
     }
 
@@ -3079,11 +3181,166 @@
         GM_addStyle(Style);
 
         // Add buttons
-        debugger;
+        //debugger;
         var KeyButton = AddButtonBesideDisabledButton(
 			[Local.OrigText_Button_DungeonDetails, Local.Text_Button_ExtraStat, OnCountStat], [Local.OrigText_Button_DungeonStat, Local.Text_Button_EntireStat, OnCountEntireStat], [Local.OrigText_Button_DuelDetails, Local.Text_Button_ExtraStat, OnCountStat]);
         if (KeyButton === null) return;
+        KeyButton = addFilter(KeyButton);
+        addStatusBar(KeyButton);
+        dataPage = document.createElement('div');
+        dataPage.innerHTML = "";
     }
+    
+    function addStatusBar(node)
+    {
+        var progressDiv = document.createElement('div');
+        progressDiv.id = 'myProgress';
+        reportInfoDiv = document.createElement('div');
+        reportInfoDiv.id = 'myBar';
+        progressDiv.appendChild(reportInfoDiv);
+        node.parentNode.insertBefore(progressDiv, node.nextSibling);        
+    }
+    
+    function addFilter(KeyButton)
+    {
+        var newLine = document.createElement("br");
+        KeyButton = KeyButton.parentNode.insertBefore(newLine, KeyButton.nextSibling);
+        var newSpan = document.createElement("span");
+        newSpan.innerHTML = "选择要统计的项目：";
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);
+        
+        //先攻
+        var newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Init)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Ini";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Ini;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);
+        
+        //攻击骰
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Attack)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Attack";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Attack;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);
+        
+        //防御骰
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Defence)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Defence";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Defence;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);
+        
+        //造成伤害
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Damage)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Damage";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);        
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Damage;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);
+
+        //受到伤害
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Damaged)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Damaged";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);        
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Damaged;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);
+        
+        //给予治疗
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Heal)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Heal";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);        
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Heal;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);        
+        
+        //接受治疗
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Healed)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Healed";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);        
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Healed;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);         
+        
+        //给予增益
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Buff)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Buff";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);        
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Buff;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);        
+        
+        //接受增益
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.Buffed)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_Buffed";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);        
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_Buffed;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);                 
+        
+        //物品损坏
+        newCheckBox = document.createElement("input");
+        newCheckBox.setAttribute("type", "checkbox");
+        newCheckBox.setAttribute("class", "checkbox");
+        newCheckBox.setAttribute("value", "");
+        if(includeFilter.DamagedItems)
+            newCheckBox.setAttribute("checked", "true");
+        newCheckBox.id = "chk_Text_Table_DamagedItems";
+        KeyButton = KeyButton.parentNode.insertBefore(newCheckBox, KeyButton.nextSibling);        
+        newSpan = document.createElement("span");
+        newSpan.innerHTML = Local.Text_Table_DamagedItems;
+        KeyButton = KeyButton.parentNode.insertBefore(newSpan, KeyButton.nextSibling);
+        
+        return KeyButton;
+}
 
 
     // It will only add the first eligible button
@@ -3094,8 +3351,7 @@
             if (allInputs[i].className == "button_disabled") {
                 for (var j = 0; j < arguments.length; ++j) {
                     if (allInputs[i].getAttribute("value") == arguments[j][0]) {
-                        AddButton(allInputs[i], arguments[j][1], arguments[j][2]);
-                        return allInputs[i];
+                        return AddButton(allInputs[i], arguments[j][1], arguments[j][2]);
                     }
                 }
             }
@@ -3114,52 +3370,64 @@
         var newBlank = document.createTextNode("            ");
         SiblingNode.parentNode.appendChild(newBlank);
         SiblingNode.parentNode.appendChild(newButton);
+        return newButton;
     }
 
 
     function OnCountStat() {
         try {
+            clickedButton = this;
             if (this.className == "button_disabled")
                 return;
             else
                 this.className = "button_disabled";
-			var reportInfoDiv = document.createElement('div');
-			reportInfoDiv.id = 'report_info';
-			Stat = CreateStat(node_after(this.parentNode),reportInfoDiv, false);
+			var InfoDiv = document.createElement('div');
+			InfoDiv.id = 'report_info';
+			Stat = CreateStat(node_after(this.parentNode),InfoDiv, false);
+            reportInfoDiv.style.width = '1%';
             Stat.nTotalPages = 1;
+            //Stat.nReadPages = 1;
 			Stat.iscurrentPage = true;
+            Stat.ShowProgress();
+            if(progress)
+                clearInterval(progress);
+            progress = setInterval(Stat.ShowProgress.bind(Stat), 1);
             ReadPage(document, true);
         } catch (e) {
             alert("OnCountStat(): " + e);
-        };
+        }
     }
 
 
     function OnCountEntireStat() {
         try {
+            clickedButton = this;
             if (this.className == "button_disabled")
                 return;
             else
                 this.className = "button_disabled";
-			var reportInfoDiv = document.createElement('div');
-			reportInfoDiv.id = 'report_Entire_info';
-			Stat = CreateStat(node_after(this.parentNode),reportInfoDiv, false);
-			
+			var InfoDiv = document.createElement('div');
+			InfoDiv.id = 'report_Entire_info';
+			Stat = CreateStat(node_after(this.parentNode),InfoDiv, false);
+            reportInfoDiv.style.width = '1%';
             CountEntireStat();
         } catch (e) {
             alert("OnCountEntireStat(): " + e);
-        };
+        }
     }
 
 
     function CountEntireStat() {
         var nCurrRepId = GetHiddenInfo(document, "report_id[0]", "");
         var nMaxLevel = Stat.nTotalPages = GetStatPageMaxLevel(document, 1);
-
+        Stat.ShowProgress();
+        if(progress)
+            clearInterval(progress);
+        progress = setInterval(Stat.ShowProgress.bind(Stat), 1);
         for (var CurrLevel = 1; CurrLevel <= nMaxLevel; ++CurrLevel)
             GetPage(nCurrRepId, CurrLevel, 1, true);
 
-        Stat.ShowProgress();
+        //Stat.ShowProgress();
     }
 
 
@@ -3169,11 +3437,10 @@
         XmlHttp.onreadystatechange = function() {
             try {
                 if (XmlHttp.readyState == 4 && XmlHttp.status == 200) {
-                    var Page = document.createElement("div");
-                    Page.innerHTML = XmlHttp.responseText;
-					
+                    dataPage.innerHTML = XmlHttp.responseText;
+                    //Stat.nReadPages = nRepPage;
                     Stat.iscurrentPage = false;
-                    ReadPage(Page, bFirstRead);
+                    ReadPage(dataPage,bFirstRead);
                 }
             } catch (e) {
                 alert("XMLHttpRequest.onreadystatechange(): " + e);
@@ -3185,7 +3452,7 @@
             "&gruppe_id=&current_level=" + nLevel +
             "&REPORT_PAGE=" + nRepPage +
             "&IS_POPUP=1";
-
+        Stat.ShowProgress();
         XmlHttp.open("GET", URL, true);
         XmlHttp.send(null);
     }
@@ -3195,23 +3462,27 @@
         var ret = GetRepPageInfo(page, [1, 1]);
         var nCurrRepPage = ret[0];
         var nMaxRepPage = ret[1];
-
         if (bFirstRead && nMaxRepPage > 1) {
             var nRepId = GetHiddenInfo(page, "report_id[0]", "");
             var nLevel = GetHiddenInfo(page, "current_level", 1);
 
             Stat.nTotalPages += nMaxRepPage - 1;
             for (var i = 1; i <= nMaxRepPage; ++i) {
+                Stat.ShowProgress();
                 if (i !== nCurrRepPage)
                     GetPage(nRepId, nLevel, i, false);
             }
         }
-
+        Stat.nReadPages++;
+        Stat.ShowProgress();
         CountStat(page, (nCurrRepPage === nMaxRepPage));
-        if (++Stat.nReadPages >= Stat.nTotalPages)
+        if (Stat.nReadPages >= Stat.nTotalPages)
+        {
             Stat.Show(false);
-        else
-            Stat.ShowProgress();
+            //debugger;
+            if(clickedButton)
+                clickedButton.className = "button";
+        }
     }
 
 
@@ -3221,7 +3492,7 @@
             if (allInputs[i].getAttribute("type") == "hidden" &&
                 allInputs[i].name == InfoName)
                 return allInputs[i].value;
-        };
+        }
         return DefaultValue;
     }
 
@@ -3235,7 +3506,7 @@
             if (LevelNode != null && LevelNode.nodeType == Node.TEXT_NODE && LevelNode.data == Local.OrigText_Level) {
                 var Patt_Level = /^(?:<span .*?>)?(?:[\d]+)\/([\d]+)(?:<\/span>)?$/;
                 var result = Patt_Level.exec(node_after(allTds[i]).innerHTML);
-                if (result == null) return DefaultValue;
+                if (result === null) return DefaultValue;
                 return Number(result[1]);
             }
         }
@@ -3288,7 +3559,7 @@
         var S = document.createElement('style');
         S.type = 'text/css';
         var T = '' + styles + '';
-        T = document.createTextNode(T)
+        T = document.createTextNode(T);
         S.appendChild(T);
         page.appendChild(S);
         return;
@@ -3387,7 +3658,7 @@
                 alert("GetLevelPage XMLHttpRequest.onreadystatechange(): " + e);
             }
         };
-		debugger;
+		//debugger;
         
         XmlHttp.open("GET", gCurrentReport.getAttribute("href")+'&IS_POPUP=1&current_view[1]', true);
         XmlHttp.send(null);
@@ -3564,7 +3835,8 @@
 				}
 				if(includeData)
 				{
-					Stat.setNode(node_before(thepage.getElementsByTagName("h2")[0].nextSibling));				
+					debugger;
+                    Stat.setNode(node_before(thepage.getElementsByTagName("h2")[0].nextSibling));				
 					Stat.Show(true);
 				}
 				gZip.file(theFileName, handlePage(thepage,nLevel));
@@ -3591,7 +3863,8 @@
                     infodiv.innerHTML = "保存战报：&nbsp;" + gTitle + "<br/>" + gCurrentReport.getAttribute("title") + " - 统计表";
                     if(includeData)
 					{
-						StatEntire.setNode(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling));
+						debugger;
+                        StatEntire.setNode(node_before(gResponseDiv.getElementsByTagName("h2")[0].nextSibling));
 						StatEntire.Show(true);
 					}
                     gZip.file(gCurrentReport.value + "/statistics.html", handlePage(gResponseDiv));
@@ -3781,7 +4054,7 @@
                 break;
             }
         }
-        return page
+        return page;
     }
 
     function replaceURL(page, tag, attr, value) {
@@ -3913,6 +4186,12 @@
         var row = allRow[allRow.length - 1];
         row.parentNode.removeChild(row);
     }
+    
+    function insertFilter()
+    {
+        if(this.checked)
+            addFilter(this.nextSibling);
+    }
 
     var gIndexRowclass = "row0";
     var gCurrentReport;
@@ -3992,19 +4271,18 @@
                 newCheckBox.setAttribute("type", "checkbox");
                 newCheckBox.setAttribute("class", "checkbox");
                 newCheckBox.setAttribute("value", "同时保存统计信息");
+                newCheckBox.addEventListener("change", insertFilter,false);
                 newCheckBox.id = "export_with_data";
                 h1.parentNode.insertBefore(newCheckBox, h1.nextSibling);
                 InsertButton(h1, rLocal.Text_Button_Exportlog, exportLog);
                 InsertButton(h1, rLocal.Text_Button_ClearAll, cleartAll);
                 InsertButton(h1, rLocal.Text_Button_SelectAll, selectAll);
-                
-                
-                
+
                 gResponseDiv = document.createElement("div");
                 gResponseDiv.innerHTML = "";
                 gIndexTemplateDiv = document.createElement("div");
                 gIndexTemplateDiv.innerHTML = "";
-                
+
                 shouldContinue = true;
                 break;
             }
@@ -4136,18 +4414,17 @@
 	{
 		var checkboxlist = document.getElementsByTagName("input");
 		var selectedheros = [];
-		var classNamepattern = /^[rep_monster|rep_hero|rep_myhero]/
+		var classNamepattern = /^[rep_monster|rep_hero|rep_myhero]/;
 		for(var i=0;i<checkboxlist.length;i++)
 		{
 			var checkbox = checkboxlist[i];
 			if(checkbox.getAttribute("type") == "checkbox" && checkbox.getAttribute("class") == "filter")
-			{				
+			{
 				if(checkbox.value == o.value)
 					checkbox.checked = o.checked;
 				if(checkbox.checked && selectedheros.indexOf(checkbox.value) <= -1)
 					selectedheros.push(checkbox.value);
 			}
-					
 		}
 		var tables = document.getElementsByTagName("table");
 		for(var i= 0; i<tables.length; i++)
@@ -4190,7 +4467,7 @@
 				}
 			}
 		}
-	}
+	};
 	
     try {
         isDuel = (window.location.href.indexOf("duell.php") > 0);
@@ -4200,4 +4477,4 @@
     } catch (e) {
         alert("Main(): " + e);
     }
-})()
+})();
