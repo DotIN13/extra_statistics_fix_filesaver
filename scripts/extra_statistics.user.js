@@ -1,4 +1,4 @@
-//-----------------------------------------------------------------------------
+﻿//-----------------------------------------------------------------------------
 // [WoD] Extra Statistics
 // Copyright (c) Fenghou, Tomy
 // This script can generate additional statistical data in the dungeon and duel report pages.
@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.25.0
+// @version			2.25.1
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -572,8 +572,14 @@
         if(!isExport)
         {
             this._Node.appendChild(document.createElement('hr'));
+			//this._Node.appendChild(this._reportInfoDiv);
             this.ShowProgress();
         }
+		if(!this.iscurrentPage)
+		{
+			this._reportInfoDiv.style.display = 'none';
+			this._Node.appendChild(this._reportInfoDiv);
+		}
 		//this._reportInfoDiv.parentNode.removeChild(this._reportInfoDiv);
 	};
 
