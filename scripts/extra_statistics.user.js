@@ -24,7 +24,8 @@
 // @require			https://raw.githubusercontent.com/Stuk/jszip/master/dist/jszip.js
 // @require			http://malsup.github.com/jquery.form.js
 // @updateURL		https://bitbucket.org/wod/extra_statistics/raw/with_report_export/scripts/extra_statistics.user.js
-// @downloadURL		https://bitbucket.org/wod/extra_statistics/raw/with_report_export/scripts/extra_statistics.user.js
+// @downloadURL		https://bitbucket.org/DotIN13/extra_statistics_fix_filesaver/raw/d93d309e4c00c9955941c251c5433f4fa4d21e87/scripts/extra_statistics.user.js
+
 // ==/UserScript==
 (function() {
     // COMMON FUNCTIONS ///////////////////////////////////////////////////////////
