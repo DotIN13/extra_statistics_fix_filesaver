@@ -15,12 +15,12 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.25.1
+// @version			2.25.1.1
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
 // @require			https://raw.githubusercontent.com/eligrey/Blob.js/master/Blob.js
-// @require			https://raw.githubusercontent.com/eligrey/FileSaver.js/master/FileSaver.js
+// @require			https://raw.githubusercontent.com/eligrey/FileSaver.js/1.2.0/FileSaver.js
 // @require			https://raw.githubusercontent.com/Stuk/jszip/master/dist/jszip.js
 // @require			http://malsup.github.com/jquery.form.js
 // @updateURL		https://bitbucket.org/wod/extra_statistics/raw/with_report_export/scripts/extra_statistics.user.js
