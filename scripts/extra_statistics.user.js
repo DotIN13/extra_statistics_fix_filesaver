@@ -1,6 +1,6 @@
 ﻿//-----------------------------------------------------------------------------
 // [WoD] Extra Statistics
-// Copyright (c) Fenghou, Tomy
+// Copyright (c) Fenghou, Tomy, DotIN13, ShakeSS
 // This script can generate additional statistical data in the dungeon and duel report pages.
 // When you entered the details or statistics page of reports, a new button will appear beside
 //   the details button. At the details page, the new button is "Extra Stat", which will show
@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name			Extra Statistics
 // @namespace		fenghou
-// @version			2.25.1.1
+// @version			2.25.1.2
 // @description		Generate additional statistical data in the dungeon and duel report pages
 // @include			http*://*.world-of-dungeons.*/wod/spiel/*dungeon/report.php*
 // @include			http*://*.world-of-dungeons.*/wod/spiel/tournament/*duell.php*
@@ -23,8 +23,8 @@
 // @require			https://raw.githubusercontent.com/eligrey/FileSaver.js/1.2.0/FileSaver.js
 // @require			https://raw.githubusercontent.com/Stuk/jszip/master/dist/jszip.js
 // @require			http://malsup.github.com/jquery.form.js
-// @updateURL		https://bitbucket.org/wod/extra_statistics/raw/with_report_export/scripts/extra_statistics.user.js
-// @downloadURL		https://bitbucket.org/DotIN13/extra_statistics_fix_filesaver/raw/d93d309e4c00c9955941c251c5433f4fa4d21e87/scripts/extra_statistics.user.js
+// @updateURL		https://bitbucket.org/DotIN13/extra_statistics_fix_filesaver/raw/with_report_export/scripts/extra_statistics.user.js
+// @downloadURL		https://bitbucket.org/DotIN13/extra_statistics_fix_filesaver/raw/with_report_export/scripts/extra_statistics.user.js
 
 // ==/UserScript==
 (function() {
